@@ -1,5 +1,5 @@
-#ifndef GATT_DATABASE_HPP
-#define GATT_DATABASE_HPP
+#ifndef BPS_GATT_DATABASE_HPP
+#define BPS_GATT_DATABASE_HPP
 
 #include <cstdint>
 #include <array>
@@ -13,42 +13,42 @@
 
 namespace bps::gatt {
 
-namespace Att {
+struct Att {
     // Wrap ATT C macros into constant struct type
-    namespace Handle {
-        namespace Gap {
+    struct Handle {
+        struct Gap {
             static constexpr std::uint16_t kStart      = ATT_SERVICE_GAP_SERVICE_START_HANDLE;
             static constexpr std::uint16_t kEnd        = ATT_SERVICE_GAP_SERVICE_END_HANDLE;
             static constexpr std::uint16_t kDeviceName = ATT_CHARACTERISTIC_GAP_DEVICE_NAME_01_VALUE_HANDLE;
         };
 
-        namespace Gatt {
+        struct Gatt {
             static constexpr std::uint16_t kStart        = ATT_SERVICE_GATT_SERVICE_START_HANDLE;
             static constexpr std::uint16_t kEnd          = ATT_SERVICE_GATT_SERVICE_END_HANDLE;
             static constexpr std::uint16_t kDatabaseHash = ATT_CHARACTERISTIC_GATT_DATABASE_HASH_01_VALUE_HANDLE;
         };
 
-        namespace CustomCharacteristic {
+        struct CustomCharacteristic {
             static constexpr std::uint16_t kStart = ATT_SERVICE_652C47C0_C653_41BC_8828_30200EF3350A_START_HANDLE;
             static constexpr std::uint16_t kEnd   = ATT_SERVICE_652C47C0_C653_41BC_8828_30200EF3350A_END_HANDLE;
 
-            namespace Action {
+            struct Action {
                 static constexpr std::uint16_t kValue           = ATT_CHARACTERISTIC_652C47C1_C653_41BC_8828_30200EF3350A_01_VALUE_HANDLE;
                 static constexpr std::uint16_t kUserDescription = ATT_CHARACTERISTIC_652C47C1_C653_41BC_8828_30200EF3350A_01_USER_DESCRIPTION_HANDLE;
             };
 
-            namespace PressureBaseValue {
+            struct PressureBaseValue {
                 static constexpr std::uint16_t kValue           = ATT_CHARACTERISTIC_652C47C2_C653_41BC_8828_30200EF3350A_01_VALUE_HANDLE;
                 static constexpr std::uint16_t kUserDescription = ATT_CHARACTERISTIC_652C47C2_C653_41BC_8828_30200EF3350A_01_USER_DESCRIPTION_HANDLE;
             };
 
-            namespace MachineStatus {
+            struct MachineStatus {
                 static constexpr std::uint16_t kValue               = ATT_CHARACTERISTIC_652C47C3_C653_41BC_8828_30200EF3350A_01_VALUE_HANDLE;
                 static constexpr std::uint16_t kClientConfiguration = ATT_CHARACTERISTIC_652C47C3_C653_41BC_8828_30200EF3350A_01_CLIENT_CONFIGURATION_HANDLE;
                 static constexpr std::uint16_t kUserDescription     = ATT_CHARACTERISTIC_652C47C3_C653_41BC_8828_30200EF3350A_01_USER_DESCRIPTION_HANDLE;
             };
 
-            namespace PulseDataSet {
+            struct PulseDataSet {
                 static constexpr std::uint16_t kValue               = ATT_CHARACTERISTIC_652C47C4_C653_41BC_8828_30200EF3350A_01_VALUE_HANDLE;
                 static constexpr std::uint16_t kClientConfiguration = ATT_CHARACTERISTIC_652C47C4_C653_41BC_8828_30200EF3350A_01_CLIENT_CONFIGURATION_HANDLE;
                 static constexpr std::uint16_t kUserDescription     = ATT_CHARACTERISTIC_652C47C4_C653_41BC_8828_30200EF3350A_01_USER_DESCRIPTION_HANDLE;
@@ -56,7 +56,7 @@ namespace Att {
         };
     };
 
-    namespace Database {
+    struct Database {
         static constexpr auto kProfileData = make_bytes(
             // ATT DB Version
             1,
@@ -146,7 +146,28 @@ class CustomCharacteristics {
 
         CustomCharacteristics();
 
-        // Setters, only allow to set Writable data
+        // Setters
+        CustomCharacteristics& setAction(
+            Action const& action
+        ) noexcept;
+
+        CustomCharacteristics& setAction(
+            ActionType const& action_type,
+            PressureType const& cun,
+            PressureType const& guan,
+            PressureType const& chi
+        ) noexcept;
+
+        CustomCharacteristics& setPressureBaseValue(
+            PressureBaseValue const& value
+        ) noexcept;
+
+        CustomCharacteristics& setPressureBaseValue(
+            std::float32_t floating,
+            std::float32_t middle,
+            std::float32_t deep
+        ) noexcept;
+
         CustomCharacteristics& setMachineStatus(
             MachineStatus const& status
         ) noexcept;
@@ -173,15 +194,16 @@ class CustomCharacteristics {
         // Getters
         [[nodiscard]] std::expected<Action, Error<std::byte>>  getAction() const noexcept;
         [[nodiscard]] PressureBaseValue getPressureBaseValue() const noexcept;
-        [[nodiscard]] std::uint16_t     getMachineStatusClientConfiguration() const noexcept;
-        [[nodiscard]] PulseValueSet     getPulseValueSet() const noexcept;
-        [[nodiscard]] std::uint16_t     getPulseValueSetClientConfiguration() const noexcept;
+        [[nodiscard]] std::expected<MachineStatus, Error<std::byte>> getMachineStatus() const noexcept;
+        [[nodiscard]] std::uint16_t getMachineStatusClientConfiguration() const noexcept;
+        [[nodiscard]] PulseValueSet getPulseValueSet() const noexcept;
+        [[nodiscard]] std::uint16_t getPulseValueSetClientConfiguration() const noexcept;
 
         // Data array reference getter
-        [[nodiscard]] auto const& getActionArray() const { return this->action; };
-        [[nodiscard]] auto const& getPressureBaseValueArray() const { return this->pressure_base_value; };
-        [[nodiscard]] auto const& getMachineStatusArray() const { return this->machine_status; };
-        [[nodiscard]] auto const& getPulseValueSetArray() const { return this->pulse_value_set; };
+        [[nodiscard]] auto& getActionArray() noexcept { return this->action; };
+        [[nodiscard]] auto& getPressureBaseValueArray() noexcept { return this->pressure_base_value; };
+        [[nodiscard]] auto& getMachineStatusArray() noexcept { return this->machine_status; };
+        [[nodiscard]] auto& getPulseValueSetArray() noexcept { return this->pulse_value_set; };
         
     private:
         // --- Compress most of data into byte array ---

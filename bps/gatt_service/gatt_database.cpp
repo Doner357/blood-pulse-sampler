@@ -19,6 +19,64 @@ CustomCharacteristics::CustomCharacteristics() :
     setPulseValueSetClientConfiguration(0);
 }
 
+
+CustomCharacteristics& CustomCharacteristics::setAction(
+    Action const& act
+) noexcept {
+    writeAsLittleEndian(act, this->action.data());
+    return *this;
+}
+
+CustomCharacteristics& CustomCharacteristics::setAction(
+    ActionType const& action_type,
+    PressureType const& cun,
+    PressureType const& guan,
+    PressureType const& chi
+) noexcept {
+    setAction(
+        Action {
+            .action_type = action_type,
+            .cun = cun,
+            .guan = guan,
+            .chi = chi
+        }
+    );
+
+    return *this;
+}
+
+CustomCharacteristics& CustomCharacteristics::setPressureBaseValue(
+    PressureBaseValue const& value
+) noexcept {
+    std::size_t offset = 0;
+    
+    writeAsLittleEndian(value.floating, &this->pressure_base_value[offset]);
+    offset += sizeof(value.floating);
+    
+    writeAsLittleEndian(value.middle, &this->pressure_base_value[offset]);
+    offset += sizeof(value.middle);
+    
+    writeAsLittleEndian(value.deep, &this->pressure_base_value[offset]);
+    offset += sizeof(value.deep);
+
+    return *this;
+}
+
+CustomCharacteristics& CustomCharacteristics::setPressureBaseValue(
+    std::float32_t floating,
+    std::float32_t middle,
+    std::float32_t deep
+) noexcept {
+    setPressureBaseValue(
+        PressureBaseValue {
+            .floating = floating,
+            .middle = middle,
+            .deep = deep
+        }
+    );
+    return *this;
+}
+
 CustomCharacteristics& CustomCharacteristics::setMachineStatus(
     MachineStatus const& status
 ) noexcept {
@@ -86,7 +144,7 @@ std::expected<Action, Error<std::byte>> CustomCharacteristics::getAction() const
     
     if (!action_type || !cun_pressure || !guan_pressure || !chi_pressure) {
         return std::unexpected(
-            Error{ErrorType::eInvalidValue, this->action[0]}
+            Error{ ErrorType::eInvalidValue, this->action[0] }
         );
     }
 
@@ -107,6 +165,16 @@ PressureBaseValue CustomCharacteristics::getPressureBaseValue() const noexcept {
     readAsNativeEndian(&this->pressure_base_value[offset], value.deep);
     
     return value;
+}
+
+std::expected<MachineStatus, Error<std::byte>> CustomCharacteristics::getMachineStatus() const noexcept {
+    auto status = toMachineStatus(this->machine_status[0]);
+    if (!status) {
+        return std::unexpected(
+            Error{ ErrorType::eInvalidValue, this->machine_status[0] }
+        );
+    }
+    return status.value();
 }
 
 std::uint16_t CustomCharacteristics::getMachineStatusClientConfiguration() const noexcept {

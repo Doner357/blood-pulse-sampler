@@ -43,6 +43,8 @@ target_compile_options(compile-options INTERFACE
 
 add_executable(blood-pulse-sampler blood-pulse-sampler.cpp )
 
+add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/bps")
+
 pico_set_program_name(blood-pulse-sampler "blood-pulse-sampler")
 pico_set_program_version(blood-pulse-sampler "0.1")
 
@@ -52,7 +54,8 @@ pico_enable_stdio_usb(blood-pulse-sampler 0)
 
 # Add the standard library to the build
 target_link_libraries(blood-pulse-sampler
-        pico_stdlib)
+        pico_stdlib
+)
 
 # Add the standard include files to the build
 target_include_directories(blood-pulse-sampler PRIVATE
@@ -60,19 +63,14 @@ target_include_directories(blood-pulse-sampler PRIVATE
 )
 
 # Add any user requested libraries
-target_link_libraries(blood-pulse-sampler 
+target_link_libraries(blood-pulse-sampler
         hardware_i2c
-        pico_btstack_ble
-        pico_btstack_cyw43
-        pico_cyw43_arch_none
-        bps-utils
-        )
+        bps-service
+)
 
 # Link to compile options interface
 target_link_libraries(blood-pulse-sampler
     compile-options
 )
-
-add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/bps")
 
 pico_add_extra_outputs(blood-pulse-sampler)

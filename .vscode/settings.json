@@ -38,7 +38,6 @@
     "raspberry-pi-pico.cmakePath": "${HOME}/.pico-sdk/cmake/v3.31.5/bin/cmake",
     "raspberry-pi-pico.ninjaPath": "${HOME}/.pico-sdk/ninja/v1.12.1/ninja",
     "files.associations": {
-        "type_traits": "cpp",
         "array": "cpp",
         "atomic": "cpp",
         "bit": "cpp",
@@ -78,6 +77,7 @@
         "string_view": "cpp",
         "system_error": "cpp",
         "tuple": "cpp",
+        "type_traits": "cpp",
         "utility": "cpp",
         "format": "cpp",
         "fstream": "cpp",
@@ -90,19 +90,19 @@
         "new": "cpp",
         "numbers": "cpp",
         "ostream": "cpp",
+        "ranges": "cpp",
         "semaphore": "cpp",
         "shared_mutex": "cpp",
         "span": "cpp",
         "sstream": "cpp",
         "stdexcept": "cpp",
+        "stdfloat": "cpp",
         "stop_token": "cpp",
         "streambuf": "cpp",
         "text_encoding": "cpp",
         "cfenv": "cpp",
         "cinttypes": "cpp",
         "typeinfo": "cpp",
-        "variant": "cpp",
-        "stdfloat": "cpp",
-        "ranges": "cpp"
+        "variant": "cpp"
     }
 }
