@@ -13,9 +13,10 @@
 #include "gatt_database.hpp"
 #include "utils.hpp"
 
+#define APP_AD_FLAGS 0x06
+
 namespace bps::gatt {
 
-// TODO: Implement a interactable GATT Server object
 // Meyers' Singleton Implementation
 class GattServer {
     public:
@@ -26,6 +27,10 @@ class GattServer {
 
         GattServer(GattServer const&) = delete;
         GattServer& operator=(GattServer const&) = delete;
+
+        void initialize() noexcept;
+        int on() noexcept;
+        int off() noexcept;
 
         // Setters, only allow to set Writable data
         GattServer& setMachineStatus(
@@ -73,6 +78,13 @@ class GattServer {
         att_service_handler_t service_handler;
         // Custom characteristic
         CustomCharacteristics characteristics;
+        
+        bool notification_pending_machine_status{false};
+        bool notification_pending_pulse_value_set{false};
+        
+        btstack_packet_callback_registration_t hci_event_callback_registration;
+        static void packetHandler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
+        void handleEvent(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
 
         // Trampoline function for btstack callback functions
         // Keep the type same as the interface provided by btstack
@@ -91,8 +103,6 @@ class GattServer {
             unsigned char *buffer,
             uint16_t buffer_size
         ) noexcept;
-        static void characteristicMachineStatusCallbackTrampoline(void* context);
-        static void characteristicPulseValueSetCallbackTrampoline(void* context);
 
         // Real att read / write callback
         uint16_t attReadCallback(
@@ -110,8 +120,6 @@ class GattServer {
             unsigned char *buffer,
             uint16_t const& buffer_size
         ) noexcept;
-        void characteristicMachineStatusCallback() noexcept;
-        void characteristicPulseValueSetCallback() noexcept;
 };
     
 } // namespace bps

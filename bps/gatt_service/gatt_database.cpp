@@ -1,11 +1,12 @@
 #include "gatt_database.hpp"
-#include "utils.hpp"
 
 #include <cstdint>
 #include <cstddef>
 #include <cstring>
 #include <utility>
 #include <expected>
+
+#include "utils.hpp"
 
 namespace bps::gatt {
 
@@ -23,7 +24,13 @@ CustomCharacteristics::CustomCharacteristics() :
 CustomCharacteristics& CustomCharacteristics::setAction(
     Action const& act
 ) noexcept {
-    writeAsLittleEndian(act, this->action.data());
+    auto packed_action = 
+        std::byte{(std::byte{std::to_underlying(act.action_type)} & std::byte{0x03}) << 0} |
+        std::byte{(std::byte{std::to_underlying(act.cun)} & std::byte{0x0c}) << 2} |
+        std::byte{(std::byte{std::to_underlying(act.guan)} & std::byte{0x30}) << 4} |
+        std::byte{(std::byte{std::to_underlying(act.chi)} & std::byte{0xc0}) << 6};
+
+    this->action[0] = packed_action;
     return *this;
 }
 
@@ -137,10 +144,10 @@ CustomCharacteristics& CustomCharacteristics::setPulseValueSetClientConfiguratio
 // Getters
 std::expected<Action, Error<std::byte>> CustomCharacteristics::getAction() const noexcept {
     using mask = std::byte;
-    auto action_type   = toActionType((this->action[0] & mask{0xc0}) >> 6);
-    auto cun_pressure  = toPressureType((this->action[0] & mask{0x30}) >> 4);
-    auto guan_pressure = toPressureType((this->action[0] & mask{0x0c}) >> 2);
-    auto chi_pressure  = toPressureType((this->action[0] & mask{0x03}) >> 0);
+    auto action_type   = toActionType((this->action[0] & mask{0x03}) >> 0);
+    auto cun_pressure  = toPressureType((this->action[0] & mask{0x0c}) >> 2);
+    auto guan_pressure = toPressureType((this->action[0] & mask{0x30}) >> 4);
+    auto chi_pressure  = toPressureType((this->action[0] & mask{0xc0}) >> 6);
     
     if (!action_type || !cun_pressure || !guan_pressure || !chi_pressure) {
         return std::unexpected(
