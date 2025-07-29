@@ -1,5 +1,5 @@
-#ifndef TRADITIONAL_CHINESE_MEDICINE_MODEL
-#define TRADITIONAL_CHINESE_MEDICINE_MODEL
+#ifndef BPS_UTILS_HPP
+#define BPS_UTILS_HPP
 
 #include <cstdint>
 #include <cstddef>
@@ -22,6 +22,7 @@ namespace bps {
 // Simple Error enum
 enum class ErrorType {
     eInvalidValue,
+    eFailedOperation
 };
 
 // Template which holds the error value
@@ -161,4 +162,4 @@ void readAsNativeEndian(std::byte const* src, T& dest) {
 
 } // namespace bps
 
-#endif // TRADITIONAL_CHINESE_MEDICINE_MODEL
+#endif // BPS_UTILS_HPP
