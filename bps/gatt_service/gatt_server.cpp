@@ -29,7 +29,6 @@ static_assert(gap_adv_data.size() <= 31);
 constexpr uint16_t adv_int_min = 800;
 constexpr uint16_t adv_int_max = 800;
 constexpr std::uint8_t adv_type = 0;
-bd_addr_t null_addr = {0};
 
 } // anymous namespace
 
@@ -62,12 +61,20 @@ void GattServer::initialize() noexcept {
     att_server_register_packet_handler(&GattServer::packetHandler);
 }
 
-int GattServer::on() noexcept {
-    return hci_power_control(HCI_POWER_ON);
+std::expected<int, Error<int>> GattServer::on() noexcept {
+    int status = hci_power_control(HCI_POWER_ON);
+    if(status != 0) {
+        return std::unexpected(Error{ErrorType::eFailedOperation, status});
+    }
+    return status;
 }
 
-int GattServer::off() noexcept {
-    return hci_power_control(HCI_POWER_OFF);
+std::expected<int, Error<int>> GattServer::off() noexcept {
+    int status = hci_power_control(HCI_POWER_OFF);
+    if(status != 0) {
+        return std::unexpected(Error{ErrorType::eFailedOperation, status});
+    }
+    return status;
 }
 
 void GattServer::packetHandler (
@@ -90,11 +97,13 @@ void GattServer::handleEvent(
     if (packet_type != HCI_EVENT_PACKET) return;
 
     std::uint8_t event_type = hci_event_packet_get_type(packet);
+    bd_addr_t null_addr = {0};
 
     switch (event_type) {
     case BTSTACK_EVENT_STATE:
         if (btstack_event_state_get_state(packet) != HCI_STATE_WORKING) return;
         gap_local_bd_addr(local_addr);
+
         gap_advertisements_set_params(adv_int_min, adv_int_max, adv_type, 0, null_addr, 0x07, 0x00);
         gap_advertisements_set_data(gap_adv_data.size(), reinterpret_cast<uint8_t*>(gap_adv_data.data()));
         gap_advertisements_enable(1);
@@ -170,7 +179,7 @@ GattServer& GattServer::setPulseValueSet(
     std::float32_t const& guan,
     std::float32_t const& chi
 ) noexcept {
-    this->setPulseValueSet(
+    return this->setPulseValueSet(
         PulseValueSet {
             .timestemp = timestemp,
             .cun = cun,
@@ -178,8 +187,16 @@ GattServer& GattServer::setPulseValueSet(
             .chi = chi
         }
     );
+}
 
-    return *this;
+void GattServer::registerActionCallback(actionCallback_t callback, void* context) noexcept {
+    this->action_callback = callback;
+    this->action_callback_context = context;
+}
+
+void GattServer::registerPressureBaseValueCallback(pressureBaseValueCallback_t callback, void* context) noexcept {
+    this->pressure_base_value_callback = callback;
+    this->pressure_base_value_context = context;
 }
 
 uint16_t GattServer::attReadCallbackTrampoline(
@@ -324,6 +341,10 @@ int GattServer::attWriteCallback(
             buffer,
             std::min(static_cast<std::size_t>(buffer_size), this->characteristics.getActionArray().size())
         );
+        if (this->action_callback) {
+            auto action = this->characteristics.getAction();
+            this->action_callback(this->action_callback_context, action);
+        }
         break;
         
     case Att::Handle::CustomCharacteristic::PressureBaseValue::kValue:
@@ -332,6 +353,10 @@ int GattServer::attWriteCallback(
             buffer,
             std::min(static_cast<std::size_t>(buffer_size), this->characteristics.getPressureBaseValueArray().size())
         );
+        if (this->pressure_base_value_callback) {
+            auto pressure_base_value = this->characteristics.getPressureBaseValue();
+            this->pressure_base_value_callback(this->pressure_base_value_context, pressure_base_value);
+        }
         break;
 
     case Att::Handle::CustomCharacteristic::MachineStatus::kClientConfiguration:

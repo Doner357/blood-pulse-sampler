@@ -1,6 +1,6 @@
-#include <cstdio>
 #include <cstdint>
 #include <array>
+#include <expected>
 
 // Pico SDK headers
 #include "pico/stdlib.h"
@@ -35,13 +35,11 @@ constexpr uint32_t I2C_BAUDRATE_HZ = (400 * 1000); // 400KHz
 // Function to select a channel on the TCA9548A
 bool select_mux_channel(uint8_t channel) {
     if (channel > 7) {
-        printf("Error: Channel number %d is out of range (0-7) for TCA9548A.\n", channel);
         return false;
     }
     uint8_t control_byte = 1 << channel; // Create a byte with only the bit for the desired channel set
     int result = i2c_write_blocking(I2C_PORT_INSTANCE, MUX_I2C_ADDR, &control_byte, 1, false);
     if (result < 0) { // PICO_ERROR_GENERIC or PICO_ERROR_TIMEOUT
-        printf("Error: Failed to select MUX channel %d, write result: %d\n", channel, result);
         return false;
     }
     // Datasheet mentions "When a channel is selected, the channel becomes active after a stop condition
@@ -57,7 +55,6 @@ int write_to_sensor(uint8_t reg, uint8_t data) {
     std::array<uint8_t, 2> buffer = {reg, data};
     int result = i2c_write_blocking(I2C_PORT_INSTANCE, SENSOR_I2C_ADDR, buffer.data(), buffer.size(), false);
     if (result < 0) {
-        printf("Error writing 0x%02X to sensor register 0x%02X, result: %d\n", data, reg, result);
     }
     return result;
 }
@@ -67,16 +64,13 @@ template <size_t N>
 int read_from_sensor(uint8_t reg_addr, std::array<uint8_t, N>& buffer) {
     int write_result = i2c_write_blocking(I2C_PORT_INSTANCE, SENSOR_I2C_ADDR, &reg_addr, 1, true);
     if (write_result < 0) {
-        printf("Error writing sensor register address 0x%02X for read, result: %d\n", reg_addr, write_result);
         return write_result;
     }
     int read_result = i2c_read_blocking(I2C_PORT_INSTANCE, SENSOR_I2C_ADDR, buffer.data(), buffer.size(), false);
     if (read_result < 0) {
-        printf("Error reading %zu bytes from sensor register 0x%02X, result: %d\n", N, reg_addr, read_result);
         return read_result;
     }
     if (static_cast<size_t>(read_result) != N) {
-        printf("Error: Expected to read %zu bytes from sensor, but read %d\n", N, read_result);
         return PICO_ERROR_GENERIC;
     }
     return read_result;
@@ -92,7 +86,6 @@ SensorData read_pressure_sensor() {
     SensorData data = {0.0f, 0.0f, false};
 
     if (write_to_sensor(SENSOR_REG_CMD, SENSOR_CMD_START_COMB) < 0) {
-        printf("Sensor: Failed to send start conversion command.\n");
         return data;
     }
 
@@ -114,7 +107,6 @@ SensorData read_pressure_sensor() {
     }
 
     if (!conversion_done) {
-        printf("Sensor: Conversion timed out. Last status: 0x%02X\n", cmd_status_val);
         // Attempting a read after a fixed longer delay as per datasheet alternative
         sleep_ms(25); // Datasheet suggests 20ms, adding a bit more
     }
@@ -125,7 +117,6 @@ SensorData read_pressure_sensor() {
     int16_t temperature_adc_raw;
 
     if (read_from_sensor(SENSOR_REG_PRESS_MSB, p_data_arr) != 3) {
-        printf("Sensor: Failed to read pressure data.\n");
         return data;
     }
     pressure_adc_raw = static_cast<int32_t>(
@@ -135,7 +126,6 @@ SensorData read_pressure_sensor() {
     );
 
     if (read_from_sensor(SENSOR_REG_TEMP_MSB, t_data_arr) != 2) {
-        printf("Sensor: Failed to read temperature data.\n");
         return data;
     }
     temperature_adc_raw = static_cast<int16_t>(
@@ -160,9 +150,17 @@ SensorData read_pressure_sensor() {
     return data;
 }
 
+bps::PulseValueSet value_set{};
 
 int main() {
     stdio_init_all();
+
+    auto& gatt_server = bps::gatt::GattServer::getInstance();
+    gatt_server.initialize();
+    auto result = gatt_server.on();
+    if (!result) {
+        return EXIT_FAILURE;
+    }
 
     i2c_init(I2C_PORT_INSTANCE, I2C_BAUDRATE_HZ);
     gpio_set_function(I2C_SDA_PIN_NUM, GPIO_FUNC_I2C);
@@ -173,11 +171,6 @@ int main() {
     bi_decl(bi_2pins_with_func(I2C_SDA_PIN_NUM, I2C_SCL_PIN_NUM, GPIO_FUNC_I2C));
     bi_decl(bi_program_description("Reads 3 XGZP6857D pressure sensors via TCA9548A MUX."));
 
-    printf("Pico W C++ SDK - TCA9548A & 3x XGZP6857D Test\n");
-    printf("TCA9548A MUX Address: 0x%02X\n", MUX_I2C_ADDR);
-    printf("XGZP6857D Sensor Address (on selected channel): 0x%02X\n", SENSOR_I2C_ADDR);
-    printf("Using K_VALUE: %.1f (Ensure this matches your sensor model!)\n\n", K_VALUE);
-
     // Disable all channels on the MUX initially (good practice)
     uint8_t disable_all_cmd = 0x00;
     i2c_write_blocking(I2C_PORT_INSTANCE, MUX_I2C_ADDR, &disable_all_cmd, 1, false);
@@ -185,9 +178,7 @@ int main() {
 
     while (true) {
         for (uint8_t i = 0; i < NUM_SENSORS; ++i) {
-            printf("--- Selecting MUX Channel %d ---\n", i);
             if (!select_mux_channel(i)) {
-                printf("Failed to select channel %d on MUX. Skipping this sensor.\n", i);
                 sleep_ms(500); // Wait a bit before trying next or looping
                 continue;
             }
@@ -197,19 +188,23 @@ int main() {
             // Usually not strictly necessary if I2C operations have proper start/stop.
             // sleep_us(200); 
 
-            printf("Reading Sensor on Channel %d (Device Address 0x%02X):\n", i, SENSOR_I2C_ADDR);
             SensorData sensor_reading = read_pressure_sensor();
-
-            if (sensor_reading.valid) {
-                printf("Sensor %d -> P: %.2f Pa, T: %.2f C\n",
-                       i + 1, sensor_reading.pressure_pa, sensor_reading.temperature_c);
-            } else {
-                printf("Sensor %d -> Failed to get valid reading.\n", i + 1);
+            switch (i) {
+            case 0:
+                value_set.cun = sensor_reading.pressure_pa;
+                break;
+            case 1:
+                value_set.guan = sensor_reading.pressure_pa;
+                break;
+            case 2:
+                value_set.chi = sensor_reading.pressure_pa;
+                break;
+            default:
+                break;
             }
-            printf("\n");
             sleep_ms(5); // Small delay between reading different sensors
         }
-        printf("----------------------------------------\n");
+        gatt_server.setPulseValueSet(value_set);
         sleep_ms(5); // Wait 2 seconds before reading all sensors again
     }
 

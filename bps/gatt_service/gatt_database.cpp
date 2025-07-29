@@ -40,7 +40,7 @@ CustomCharacteristics& CustomCharacteristics::setAction(
     PressureType const& guan,
     PressureType const& chi
 ) noexcept {
-    setAction(
+    return setAction(
         Action {
             .action_type = action_type,
             .cun = cun,
@@ -48,8 +48,6 @@ CustomCharacteristics& CustomCharacteristics::setAction(
             .chi = chi
         }
     );
-
-    return *this;
 }
 
 CustomCharacteristics& CustomCharacteristics::setPressureBaseValue(
@@ -74,14 +72,13 @@ CustomCharacteristics& CustomCharacteristics::setPressureBaseValue(
     std::float32_t middle,
     std::float32_t deep
 ) noexcept {
-    setPressureBaseValue(
+    return setPressureBaseValue(
         PressureBaseValue {
             .floating = floating,
             .middle = middle,
             .deep = deep
         }
     );
-    return *this;
 }
 
 CustomCharacteristics& CustomCharacteristics::setMachineStatus(
@@ -123,7 +120,7 @@ CustomCharacteristics& CustomCharacteristics::setPulseValueSet(
     std::float32_t const& guan,
     std::float32_t const& chi
 ) noexcept {
-    setPulseValueSet(
+    return setPulseValueSet(
         PulseValueSet{
             .timestemp = timestemp,
             .cun       = cun,
@@ -131,7 +128,6 @@ CustomCharacteristics& CustomCharacteristics::setPulseValueSet(
             .chi       = chi
         }
     );
-    return *this;
 }
 
 CustomCharacteristics& CustomCharacteristics::setPulseValueSetClientConfiguration(

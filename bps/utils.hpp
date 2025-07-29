@@ -22,6 +22,7 @@ namespace bps {
 // Simple Error enum
 enum class ErrorType {
     eInvalidValue,
+    eFailedOperation
 };
 
 // Template which holds the error value

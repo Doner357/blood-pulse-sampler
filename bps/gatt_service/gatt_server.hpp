@@ -9,6 +9,7 @@
 #include <cstddef>
 #include <array>
 #include <stdfloat>
+#include <expected>
 
 #include "gatt_database.hpp"
 #include "utils.hpp"
@@ -20,6 +21,10 @@ namespace bps::gatt {
 // Meyers' Singleton Implementation
 class GattServer {
     public:
+        // Predefined type for convenience usages
+        using actionCallback_t = void (*)(void* context, std::expected<Action, Error<std::byte>>);
+        using pressureBaseValueCallback_t = void (*)(void* context, PressureBaseValue const& base_value);
+
         static GattServer& getInstance() noexcept {
             static GattServer instance;
             return instance;
@@ -29,8 +34,8 @@ class GattServer {
         GattServer& operator=(GattServer const&) = delete;
 
         void initialize() noexcept;
-        int on() noexcept;
-        int off() noexcept;
+        std::expected<int, Error<int>> on() noexcept;
+        std::expected<int, Error<int>> off() noexcept;
 
         // Setters, only allow to set Writable data
         GattServer& setMachineStatus(
@@ -68,6 +73,11 @@ class GattServer {
             return this->characteristics.getPulseValueSetClientConfiguration();
         }
 
+        // Register the action & pressure base value callback which will be called
+        // when value has been written
+        void registerActionCallback(actionCallback_t callback, void* context) noexcept;
+        void registerPressureBaseValueCallback(pressureBaseValueCallback_t callback, void* context) noexcept;
+
     private:
 
         // Private Constructor for singletton design model
@@ -76,13 +86,22 @@ class GattServer {
         // Connection handle for service
         hci_con_handle_t      hci_con_handle;
         att_service_handler_t service_handler;
+        
+        btstack_packet_callback_registration_t hci_event_callback_registration;
+
         // Custom characteristic
         CustomCharacteristics characteristics;
         
         bool notification_pending_machine_status{false};
         bool notification_pending_pulse_value_set{false};
-        
-        btstack_packet_callback_registration_t hci_event_callback_registration;
+
+        // action & pressure base value callback registered by user
+        actionCallback_t action_callback{nullptr};
+        pressureBaseValueCallback_t pressure_base_value_callback{nullptr};
+        void* action_callback_context{nullptr};
+        void* pressure_base_value_context{nullptr};
+
+        // Btstack packet handlers
         static void packetHandler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
         void handleEvent(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
 
