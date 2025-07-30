@@ -1,35 +1,26 @@
 cmake_minimum_required(VERSION 3.13)
 
+# Custom compile options
+add_library(compile_options INTERFACE)
+target_compile_options(compile_options INTERFACE
+    $<$<CONFIG:Debug>:$<BUILD_INTERFACE:-Wall -Wextra -Wshadow -Wformat=2 -Wunused>>
+)
+
 # Declare main linking target interface
-add_library(bps-service INTERFACE)
+add_library(bps_common INTERFACE)
+
+target_include_directories(bps_common
+INTERFACE
+    ${CMAKE_CURRENT_LIST_DIR}
+)
 
 # --- Gatt ---
-add_library(bps-gatt STATIC
-    "${CMAKE_CURRENT_LIST_DIR}/gatt_service/gatt_database.cpp"
-    "${CMAKE_CURRENT_LIST_DIR}/gatt_service/gatt_server.cpp"
-)
+add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/gatt_service")
 
-target_include_directories(bps-gatt PUBLIC
-    ${CMAKE_CURRENT_LIST_DIR}
-    ${CMAKE_CURRENT_LIST_DIR}/gatt_service
-)
-
-pico_btstack_make_gatt_header(bps-gatt PUBLIC
-    "${CMAKE_CURRENT_LIST_DIR}/gatt_service/gatt_database.gatt"
-)
-
-target_link_libraries(bps-gatt PRIVATE
-    compile-options
-)
-
-target_link_libraries(bps-gatt PUBLIC
-    compile-options
-    pico_btstack_ble
-    pico_btstack_cyw43
-    pico_cyw43_arch_none
-)
+# Declare main linking target interface
+add_library(bps_service INTERFACE)
 
 # Main target
-target_link_libraries(bps-service INTERFACE
-    bps-gatt
+target_link_libraries(bps_service INTERFACE
+    bps_gatt
 )
