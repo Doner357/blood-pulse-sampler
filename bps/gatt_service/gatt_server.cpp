@@ -103,20 +103,33 @@ void GattServer::handleEvent(
     case BTSTACK_EVENT_STATE:
         if (btstack_event_state_get_state(packet) != HCI_STATE_WORKING) return;
         gap_local_bd_addr(local_addr);
-
         gap_advertisements_set_params(adv_int_min, adv_int_max, adv_type, 0, null_addr, 0x07, 0x00);
         gap_advertisements_set_data(gap_adv_data.size(), reinterpret_cast<uint8_t*>(gap_adv_data.data()));
         gap_advertisements_enable(1);
         break;
 
     case HCI_EVENT_CONNECTION_COMPLETE:
-        this->hci_con_handle = hci_event_connection_complete_get_connection_handle(packet);
-        /* Log handling */
+        break;
+    
+    case HCI_EVENT_LE_META:
+        switch (hci_event_le_meta_get_subevent_code(packet)) {
+        case HCI_SUBEVENT_LE_CONNECTION_COMPLETE:
+            this->hci_con_handle = hci_subevent_le_connection_complete_get_connection_handle(packet);
+            if (hci_subevent_le_connection_complete_get_status(packet) == 0) {
+                gap_request_connection_parameter_update(this->hci_con_handle, 6, 12, 0, 0x0048);
+            } else {
+                this->hci_con_handle = HCI_CON_HANDLE_INVALID;
+            }
+            break;
+        default:
+            break;
+        }
         break;
 
     case HCI_EVENT_DISCONNECTION_COMPLETE:
         /* Log handling */
         this->hci_con_handle = HCI_CON_HANDLE_INVALID;
+        this->characteristics = CustomCharacteristics{};
         gap_advertisements_enable(1);
         break;
 
@@ -166,7 +179,8 @@ GattServer& GattServer::setPulseValueSet(
 ) noexcept {
     this->characteristics.setPulseValueSet(value_set);
     if (this->characteristics.getPulseValueSetClientConfiguration() == 
-    GATT_CLIENT_CHARACTERISTICS_CONFIGURATION_NOTIFICATION) {
+    GATT_CLIENT_CHARACTERISTICS_CONFIGURATION_NOTIFICATION &&
+    (this->hci_con_handle != HCI_CON_HANDLE_INVALID)) {
         this->notification_pending_pulse_value_set = true;
         att_server_request_can_send_now_event(this->hci_con_handle);
     }
