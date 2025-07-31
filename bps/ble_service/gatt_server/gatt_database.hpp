@@ -2,16 +2,11 @@
 #define BPS_GATT_DATABASE_HPP
 
 #include <cstdint>
-#include <array>
-#include <cstddef>
-#include <expected>
-#include <string_view>
-
-#include "utils.hpp"
 
 #include "gatt_database.h"
+#include "utils.hpp"
 
-namespace bps::gatt {
+namespace bps::ble::gatt {
 
 struct Att {
     // Wrap ATT C macros into constant struct type
@@ -56,8 +51,9 @@ struct Att {
         };
     };
 
+    // Wrap database into C++ style constexpr array
     struct Database {
-        static constexpr auto kProfileData = make_bytes(
+        static constexpr auto kProfileData = makeBytes(
             // ATT DB Version
             1,
 
@@ -131,96 +127,6 @@ struct Att {
     };
 };
 
-// Class object holding characteristic data
-class CustomCharacteristics {
-    public:
-        // Descriptions for each characteristic
-        static constexpr inline std::string_view action_description 
-        = "Control machine movements";
-        static constexpr inline std::string_view pressure_base_value_description
-        = "Pressure reference values at three measuring locations";
-        static constexpr inline std::string_view machine_status_description
-        = "Status of sampler";
-        static constexpr inline std::string_view pulse_value_set_description
-        = "Measured pulsed value";
-
-        CustomCharacteristics();
-
-        // Setters
-        CustomCharacteristics& setAction(
-            Action const& action
-        ) noexcept;
-
-        CustomCharacteristics& setAction(
-            ActionType const& action_type,
-            PressureType const& cun,
-            PressureType const& guan,
-            PressureType const& chi
-        ) noexcept;
-
-        CustomCharacteristics& setPressureBaseValue(
-            PressureBaseValue const& value
-        ) noexcept;
-
-        CustomCharacteristics& setPressureBaseValue(
-            std::float32_t floating,
-            std::float32_t middle,
-            std::float32_t deep
-        ) noexcept;
-
-        CustomCharacteristics& setMachineStatus(
-            MachineStatus const& status
-        ) noexcept;
-
-        CustomCharacteristics& setMachineStatusClientConfiguration(
-            std::uint16_t const& configuration
-        ) noexcept;
-
-        CustomCharacteristics& setPulseValueSet(
-            PulseValueSet const& value_set
-        ) noexcept;
-
-        CustomCharacteristics& setPulseValueSet(
-            std::float64_t const& timestemp,
-            std::float32_t const& cun,
-            std::float32_t const& guan,
-            std::float32_t const& chi
-        ) noexcept;
-
-        CustomCharacteristics& setPulseValueSetClientConfiguration(
-            std::uint16_t configuration
-        ) noexcept;
-        
-        // Getters
-        [[nodiscard]] std::expected<Action, Error<std::byte>>  getAction() const noexcept;
-        [[nodiscard]] PressureBaseValue getPressureBaseValue() const noexcept;
-        [[nodiscard]] std::expected<MachineStatus, Error<std::byte>> getMachineStatus() const noexcept;
-        [[nodiscard]] std::uint16_t getMachineStatusClientConfiguration() const noexcept;
-        [[nodiscard]] PulseValueSet getPulseValueSet() const noexcept;
-        [[nodiscard]] std::uint16_t getPulseValueSetClientConfiguration() const noexcept;
-
-        // Data array reference getter
-        [[nodiscard]] auto& getActionArray() noexcept { return this->action; };
-        [[nodiscard]] auto& getPressureBaseValueArray() noexcept { return this->pressure_base_value; };
-        [[nodiscard]] auto& getMachineStatusArray() noexcept { return this->machine_status; };
-        [[nodiscard]] auto& getPulseValueSetArray() noexcept { return this->pulse_value_set; };
-        
-    private:
-        // --- Compress most of data into byte array ---
-        // Characteristic Action information
-        std::array<std::byte, 1> action;
-
-        // Characteristic Pressure base value information
-        std::array<std::byte, 12> pressure_base_value;
-
-        // Characteristic Machine status information
-        std::array<std::byte, 1> machine_status;
-        std::uint16_t            machine_status_client_configuration;
-
-        // Characteristic Pulse value set information
-        std::array<std::byte, 20> pulse_value_set;
-        std::uint16_t             pulse_value_set_client_configuration;
-};
 
 } // namespace bps::ble
 
