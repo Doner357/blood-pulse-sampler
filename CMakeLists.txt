@@ -33,17 +33,57 @@ project(blood-pulse-sampler C CXX ASM)
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
 
+# ======== FreeRTOS ========
+# Fetch RTOS
+FetchContent_Declare( freertos_kernel
+  GIT_REPOSITORY https://github.com/FreeRTOS/FreeRTOS-Kernel.git
+  GIT_TAG        V11.2.0 #Note: Best practice to use specific git-hash or tagged version
+)
+
+# FreeRTOS Configurations
+add_library(freertos_config INTERFACE)
+
+target_include_directories(freertos_config SYSTEM
+INTERFACE
+    "${CMAKE_CURRENT_LIST_DIR}/freertos"
+)
+
+target_compile_definitions(freertos_config
+INTERFACE
+    projCOVERAGE_TEST=0
+)
+
+# In case of cross compilation
+# target_compile_definitions(freertos_config INTERFACE ${definitions})
+# target_compile_options(freertos_config INTERFACE ${options})
+
+# Select TEMPLATE as port since RP2350 has not been add to
+# FreeRTOS default provided port
+set( FREERTOS_HEAP "4" CACHE STRING "" FORCE)
+# Select the native compile PORT
+set( FREERTOS_PORT "TEMPLATE" CACHE STRING "" FORCE)
+# Select the cross-compile PORT
+if (CMAKE_CROSSCOMPILING)
+  set(FREERTOS_PORT "TEMPLATE" CACHE STRING "" FORCE)
+endif()
+
+FetchContent_MakeAvailable(freertos_kernel)
+set(FREERTOS_KERNEL_PATH ${freertos_kernel_SOURCE_DIR})
+include(FreeRTOS_Kernel_import.cmake)
+
+# ==========================
+
 # Custom compile options
-add_library(compile-options INTERFACE)
-target_compile_options(compile-options INTERFACE
+add_library(compile_options INTERFACE)
+target_compile_options(compile_options INTERFACE
     $<$<CONFIG:Debug>:$<BUILD_INTERFACE:-Wall -Wextra -Wshadow -Wformat=2 -Wunused>>
 )
 
-# Add executable. Default name is the project name, version 0.1
-
-add_executable(blood-pulse-sampler blood-pulse-sampler.cpp )
-
+# Add bps subdirectory for main library usage
 add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/bps")
+
+# Add executable. Default name is the project name, version 0.1
+add_executable(blood-pulse-sampler blood-pulse-sampler.cpp )
 
 pico_set_program_name(blood-pulse-sampler "blood-pulse-sampler")
 pico_set_program_version(blood-pulse-sampler "0.1")
@@ -65,12 +105,12 @@ target_include_directories(blood-pulse-sampler PRIVATE
 # Add any user requested libraries
 target_link_libraries(blood-pulse-sampler
         hardware_i2c
-        bps-service
+        bps_service
 )
 
 # Link to compile options interface
 target_link_libraries(blood-pulse-sampler
-    compile-options
+    compile_options
 )
 
 pico_add_extra_outputs(blood-pulse-sampler)
