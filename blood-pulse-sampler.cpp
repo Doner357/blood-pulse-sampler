@@ -6,7 +6,7 @@
 #include "pico/stdlib.h"
 #include "hardware/i2c.h"
 #include "pico/binary_info.h"
-#include "gatt_service/gatt_server.hpp"
+#include "ble_service.hpp"
 
 // --- I2C Multiplexer (TCA9548A) Constants ---
 constexpr uint8_t MUX_I2C_ADDR        = 0x70;     // Default TCA9548A I2C address (A0,A1,A2 to GND)
@@ -155,7 +155,7 @@ bps::PulseValueSet value_set{};
 int main() {
     stdio_init_all();
 
-    auto& gatt_server = bps::gatt::GattServer::getInstance();
+    auto& gatt_server = bps::ble::gatt::GattServer::getInstance();
     gatt_server.initialize();
     auto result = gatt_server.on();
     if (!result) {

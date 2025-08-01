@@ -132,7 +132,7 @@ struct PulseValueSet {
 
 // Helper function to generate std::byte array
 template<typename... Ts>
-constexpr std::array<std::byte, sizeof...(Ts)> make_bytes(Ts&&... args) noexcept {
+constexpr std::array<std::byte, sizeof...(Ts)> makeBytes(Ts&&... args) noexcept {
     return{std::byte(std::forward<Ts>(args))...};
 }
 

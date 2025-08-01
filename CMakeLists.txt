@@ -33,6 +33,7 @@ project(blood-pulse-sampler C CXX ASM)
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
 
+# ======== FreeRTOS ========
 # Fetch RTOS
 FetchContent_Declare( freertos_kernel
   GIT_REPOSITORY https://github.com/FreeRTOS/FreeRTOS-Kernel.git
@@ -69,6 +70,14 @@ endif()
 FetchContent_MakeAvailable(freertos_kernel)
 set(FREERTOS_KERNEL_PATH ${freertos_kernel_SOURCE_DIR})
 include(FreeRTOS_Kernel_import.cmake)
+
+# ==========================
+
+# Custom compile options
+add_library(compile_options INTERFACE)
+target_compile_options(compile_options INTERFACE
+    $<$<CONFIG:Debug>:$<BUILD_INTERFACE:-Wall -Wextra -Wshadow -Wformat=2 -Wunused>>
+)
 
 # Add bps subdirectory for main library usage
 add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/bps")
