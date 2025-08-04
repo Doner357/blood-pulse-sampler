@@ -175,7 +175,6 @@ int main() {
     uint8_t disable_all_cmd = 0x00;
     i2c_write_blocking(I2C_PORT_INSTANCE, MUX_I2C_ADDR, &disable_all_cmd, 1, false);
 
-
     while (true) {
         for (uint8_t i = 0; i < NUM_SENSORS; ++i) {
             if (!select_mux_channel(i)) {
