@@ -33,28 +33,15 @@ project(blood-pulse-sampler C CXX ASM)
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
 
-# ======== FreeRTOS ========
-# --------------------------------------------------------------------------------------
+# == FreeRTOS ========================================================================
+# -----------------------------------------------------------------------------------
 # Note:
 #   On RP2350, you must initialize the submodules of the FreeRTOS-Kernel repository.
-# --------------------------------------------------------------------------------------
-set(FREERTOS_KERNEL_PATH "${CMAKE_CURRENT_LIST_DIR}/freertos-kernel")
-# Pico-provided freertos import file
-include(FreeRTOS_Kernel_import.cmake)
-
-add_library(freertos_kernel INTERFACE)
-
-target_include_directories(freertos_kernel
-    INTERFACE
-        "${CMAKE_CURRENT_LIST_DIR}/freertos-config"
-)
-
-target_link_libraries(freertos_kernel
-    INTERFACE
-        FreeRTOS-Kernel-Static
-        FreeRTOS-Kernel-Heap4
-)
-# ==========================
+# -----------------------------------------------------------------------------------
+# Add freertos as subdirectory, you can link to "freertos_kernel" to use necessary features
+# required by this project.
+add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/freertos")
+# ====================================================================================
 
 # Custom compile options
 add_library(compile_options INTERFACE)
