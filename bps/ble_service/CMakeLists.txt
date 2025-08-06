@@ -17,5 +17,4 @@ target_link_libraries(bps_ble_service
     PUBLIC
         bps_common
         bps_gatt_server
-        freertos_kernel
 )

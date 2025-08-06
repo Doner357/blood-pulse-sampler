@@ -32,7 +32,7 @@ class BleService {
 
         // Create a freertos task
         // ! This must be done once before running !
-        bool createTask() noexcept;
+        bool createTask(UBaseType_t const& priority) noexcept;
 
         // Senders, send data to the ouput queue
         bool sendMachineStatus(MachineStatus const& machine_status) noexcept;

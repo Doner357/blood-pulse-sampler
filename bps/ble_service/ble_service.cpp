@@ -18,7 +18,7 @@ void BleService::initialize() noexcept {
     gatt_server.initialize();
 }
 
-bool BleService::createTask() noexcept {
+bool BleService::createTask(UBaseType_t const& priority) noexcept {
     static auto freertos_task = 
         [](void* context) {
             BleService* service = static_cast<BleService*>(context);
@@ -29,7 +29,7 @@ bool BleService::createTask() noexcept {
         "BLE Service",
         2048,
         this,
-        1,
+        priority,
         &this->task_handle
     );
 }
@@ -75,6 +75,12 @@ void BleService::registerPressureBaseValueCallback(pressureBaseValueCallback_t c
 }
 
 void BleService::taskLoop() noexcept {
+
+    gatt::GattServer::getInstance().on();
+
+    TickType_t xLastWakeTime = xTaskGetTickCount();
+    constexpr TickType_t xFrequency = pdMS_TO_TICKS(8);
+
     static Action action{};
     static PressureBaseValue base_value{};
     static MachineStatus machine_status{};
@@ -106,7 +112,7 @@ void BleService::taskLoop() noexcept {
         }
 
         /* Do something else */
-        vTaskDelay(TickType_t(5));
+        vTaskDelayUntil(&xLastWakeTime, xFrequency);
     }
     
     /* Optional: Error Handling */
