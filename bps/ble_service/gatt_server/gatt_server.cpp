@@ -12,6 +12,7 @@
 #include <expected>
 #include <string_view>
 
+#include "common.hpp"
 #include "utils.hpp"
 #include "gatt_database.hpp"
 

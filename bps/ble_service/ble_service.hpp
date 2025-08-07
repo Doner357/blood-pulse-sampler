@@ -5,7 +5,8 @@
 
 #include <cstdint>
 
-#include "utils.hpp"
+#include "common.hpp"
+#include "queue.hpp"
 #include "gatt_server/gatt_server.hpp"
 
 namespace bps::ble {

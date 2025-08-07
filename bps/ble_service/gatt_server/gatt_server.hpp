@@ -10,8 +10,10 @@
 #include <array>
 #include <stdfloat>
 #include <expected>
+#include <string_view>
 
 #include "gatt_database.hpp"
+#include "common.hpp"
 #include "utils.hpp"
 
 #define APP_AD_FLAGS 0x06
