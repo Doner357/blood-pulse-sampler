@@ -34,15 +34,22 @@ class BleService {
         // ! This must be done once before running !
         bool createTask(UBaseType_t const& priority) noexcept;
 
+        // Recive writable data (by ble client) from BLE service
+        // == Note ============================================================================
+        //     This will block the caller's task indefinitely until there is a data can receive
+        //     Return false as error
+        // ====================================================================================
+        bool receiveAction(Action& action) noexcept;
+        bool receivePressureBaseValue(PressureBaseValue& base_value) noexcept;
+        
         // Senders, send data to the ouput queue
+        // == Note ============================================================================
+        //     This will block the caller's task for below time:
+        //         Machine Status : 5 ms
+        //         Pulse Value Set: 5 ms
+        // ====================================================================================
         bool sendMachineStatus(MachineStatus const& machine_status) noexcept;
         bool sendPulseValueSet(PulseValueSet const& value_set) noexcept;
-
-        // Register the action & pressure base value callback which will be called
-        // when value has been written
-        void registerActionCallback(actionCallback_t callback, void* context) noexcept;
-        void registerPressureBaseValueCallback(pressureBaseValueCallback_t callback, void* context) noexcept;
-        
 
     private:
         BleService() {}
@@ -73,14 +80,8 @@ class BleService {
         PulseValueSetQueue_t     pulse_value_set_queue{};
 
         // FreeRTOS task
-        TaskHandle_t             task_handle{nullptr};
+        TaskHandle_t task_handle{nullptr};
         void taskLoop() noexcept;
-
-        // action & pressure base value callback registered by user
-        actionCallback_t action_callback{nullptr};
-        pressureBaseValueCallback_t pressure_base_value_callback{nullptr};
-        void* action_callback_context{nullptr};
-        void* pressure_base_value_context{nullptr};
 };
 
 } // bps::gatt
