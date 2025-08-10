@@ -204,7 +204,7 @@ int main() {
             }
             sleep_ms(5); // Small delay between reading different sensors
         }
-        gatt_server.setPulseValueSet(value_set);
+        gatt_server.sendPulseValueSet(value_set);
         sleep_ms(5); // Wait 2 seconds before reading all sensors again
     }
 

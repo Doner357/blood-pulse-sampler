@@ -78,7 +78,7 @@ void BleService::taskLoop() noexcept {
             if (selected_handle == this->machine_status_queue.getFreeRTOSQueueHandle()) {
                 static MachineStatus status{};
                 if (this->machine_status_queue.receive(status, pdMS_TO_TICKS(1000))) {
-                    gatt::GattServer::getInstance().setMachineStatus(status);
+                    gatt::GattServer::getInstance().sendMachineStatus(status);
                 } else {
                     /* Error Handling */
                 }
@@ -86,7 +86,7 @@ void BleService::taskLoop() noexcept {
             } else if (selected_handle == this->pulse_value_set_queue.getFreeRTOSQueueHandle()) {
                 static PulseValueSet value_set{};
                 if (this->pulse_value_set_queue.receive(value_set, pdMS_TO_TICKS(5))) {
-                    gatt::GattServer::getInstance().setPulseValueSet(value_set);
+                    gatt::GattServer::getInstance().sendPulseValueSet(value_set);
                 } else {
                     /* Error Handling */
                 }
