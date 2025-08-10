@@ -77,6 +77,7 @@ target_link_libraries(blood-pulse-sampler
         hardware_i2c
         bps_service
         freertos_kernel
+        pico_time
 )
 
 # Link to compile options interface

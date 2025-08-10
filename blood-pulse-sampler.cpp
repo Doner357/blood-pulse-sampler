@@ -6,6 +6,7 @@
 #include "pico/stdlib.h"
 #include "hardware/i2c.h"
 #include "pico/binary_info.h"
+#include "pico/time.h"
 #include "ble_service.hpp"
 
 // --- I2C Multiplexer (TCA9548A) Constants ---
@@ -204,6 +205,7 @@ int main() {
             }
             sleep_ms(5); // Small delay between reading different sensors
         }
+        value_set.timestemp = get_absolute_time();
         gatt_server.sendPulseValueSet(value_set);
         sleep_ms(5); // Wait 2 seconds before reading all sensors again
     }

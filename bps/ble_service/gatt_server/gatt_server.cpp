@@ -145,7 +145,7 @@ GattServer::CustomCharacteristics& GattServer::CustomCharacteristics::setPulseVa
 }
 
 GattServer::CustomCharacteristics& GattServer::CustomCharacteristics::setPulseValueSet(
-    std::float64_t const& timestemp,
+    std::uint64_t  const& timestemp,
     std::float32_t const& cun,
     std::float32_t const& guan,
     std::float32_t const& chi
@@ -418,7 +418,7 @@ GattServer& GattServer::sendPulseValueSet(
 }
 
 GattServer& GattServer::sendPulseValueSet(
-    std::float64_t const& timestemp,
+    std::uint64_t  const& timestemp,
     std::float32_t const& cun,
     std::float32_t const& guan,
     std::float32_t const& chi

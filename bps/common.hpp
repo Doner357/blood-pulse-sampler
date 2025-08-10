@@ -120,7 +120,7 @@ struct PressureBaseValue {
 
 // Pack one pulse sample information
 struct PulseValueSet {
-    std::float64_t timestemp = 0.0;
+    std::uint64_t  timestemp = 0;
     std::float32_t cun  = 0.0_pa;
     std::float32_t guan = 0.0_pa;
     std::float32_t chi  = 0.0_pa;
