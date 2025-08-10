@@ -244,29 +244,31 @@ GattServer::GattServer() : hci_con_handle(HCI_CON_HANDLE_INVALID) {
     this->service_handler.start_handle = Att::Handle::CustomCharacteristic::kStart;
     this->service_handler.end_handle = Att::Handle::CustomCharacteristic::kEnd;
 
-    static att_read_callback_t att_read_callback = [](
-        hci_con_handle_t con_handle,
-        uint16_t attribute_handle,
-        uint16_t offset,
-        uint8_t* buffer,
-        uint16_t buffer_size
-    ) noexcept {
-        GattServer& gatt_server = GattServer::getInstance();
-        return gatt_server.attReadCallback(con_handle, attribute_handle, offset, buffer, buffer_size);
-    };
+    static att_read_callback_t att_read_callback = 
+        [](
+            hci_con_handle_t con_handle,
+            uint16_t attribute_handle,
+            uint16_t offset,
+            uint8_t* buffer,
+            uint16_t buffer_size
+        ) noexcept {
+            GattServer& gatt_server = GattServer::getInstance();
+            return gatt_server.attReadCallback(con_handle, attribute_handle, offset, buffer, buffer_size);
+        };
     this->service_handler.read_callback = att_read_callback;
     
-    static att_write_callback_t att_write_callback = [](
-        hci_con_handle_t con_handle,
-        uint16_t attribute_handle,
-        uint16_t transaction_mode,
-        uint16_t offset,
-        unsigned char *buffer,
-        uint16_t buffer_size
-    ) noexcept {
-        GattServer& gatt_server = GattServer::getInstance();
-        return gatt_server.attWriteCallback(con_handle, attribute_handle, transaction_mode, offset, buffer, buffer_size);
-    };
+    static att_write_callback_t att_write_callback =
+        [](
+            hci_con_handle_t con_handle,
+            uint16_t attribute_handle,
+            uint16_t transaction_mode,
+            uint16_t offset,
+            unsigned char *buffer,
+            uint16_t buffer_size
+        ) noexcept {
+            GattServer& gatt_server = GattServer::getInstance();
+            return gatt_server.attWriteCallback(con_handle, attribute_handle, transaction_mode, offset, buffer, buffer_size);
+        };
     this->service_handler.write_callback = att_write_callback;
 }
 
@@ -285,15 +287,16 @@ void GattServer::initialize() noexcept {
     att_server_register_service_handler(&this->service_handler);
     
     // inform about BTstack state
-    static btstack_packet_handler_t packet_handler = [](
-        uint8_t packet_type,
-        uint16_t channel,
-        uint8_t* packet,
-        uint16_t size
-    ) noexcept {
-        GattServer& instance = GattServer::getInstance();
-        instance.packetHandler(packet_type, channel, packet, size);
-    };
+    static btstack_packet_handler_t packet_handler =
+        [](
+            uint8_t packet_type,
+            uint16_t channel,
+            uint8_t* packet,
+            uint16_t size
+        ) noexcept {
+            GattServer& instance = GattServer::getInstance();
+            instance.packetHandler(packet_type, channel, packet, size);
+        };
     this->hci_event_callback_registration.callback = packet_handler;
     hci_add_event_handler(&this->hci_event_callback_registration);
 

@@ -33,32 +33,19 @@ class BleService {
         // ! This must be done once before running !
         bool createTask(UBaseType_t const& priority) noexcept;
         
-        // Senders, send data to the ouput queue
-        // == Note ============================================================================
-        //     This will block the caller's task for below time:
-        //         Machine Status : 5 ms
-        //         Pulse Value Set: 5 ms
-        // ====================================================================================
-        bool sendMachineStatus(MachineStatus const& machine_status) noexcept;
-        bool sendPulseValueSet(PulseValueSet const& value_set) noexcept;
+        // Get the FreeRTOS queue handle
+        MachineStatusQueue_t& getMachineStatusQueue() noexcept;
+        PulseValueSetQueue_t& getPulseValueSetQueue() noexcept;
 
         // Register action and pressure base value queue
-        void registerActionQueue(QueueHandle_t const& handle) noexcept;
-        void registerPressureBaseValueQueue(QueueHandle_t const& handle) noexcept;
+        void registerActionQueue(ActionQueue_t& queue) noexcept;
+        void registerPressureBaseValueQueue(PressureBaseValueQueue_t& queue) noexcept;
 
     private:
         BleService();
-        static constexpr UBaseType_t kLengthOfMachineStatusQueue     = 3;
-        static constexpr UBaseType_t kLengthOfPulseValueSetQueue     = 255;
-        using MachineStatusQueue_t     =  StaticQueue<
-                                            MachineStatus, 
-                                            kLengthOfMachineStatusQueue
-                                        >;
-        using PulseValueSetQueue_t     = StaticQueue<
-                                            PulseValueSet, 
-                                            kLengthOfPulseValueSetQueue
-                                        >;
 
+        std::optional<ActionQueue_t*> action_queue{};
+        std::optional<PressureBaseValueQueue_t*> pressure_base_value_queue{};
         MachineStatusQueue_t machine_status_queue{};
         PulseValueSetQueue_t pulse_value_set_queue{};
 

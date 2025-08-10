@@ -8,6 +8,8 @@
 #include <stdfloat>
 #include <optional>
 
+#include "queue.hpp"
+
 // UDL for 'pa' unit, return 32-bits float
 consteval std::float32_t operator""_pa(long double pa) {
     return static_cast<std::float32_t>(pa);
@@ -125,6 +127,11 @@ struct PulseValueSet {
     std::float32_t guan = 0.0_pa;
     std::float32_t chi  = 0.0_pa;
 };
+
+using ActionQueue_t            = StaticQueue<Action, 3>;
+using PressureBaseValueQueue_t = StaticQueue<PressureBaseValue, 3>;
+using MachineStatusQueue_t     = StaticQueue<MachineStatus, 3>;
+using PulseValueSetQueue_t     = StaticQueue<PulseValueSet, 255>;
 
 } // namespace bps
 
