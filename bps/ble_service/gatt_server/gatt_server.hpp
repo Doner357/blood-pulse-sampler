@@ -10,8 +10,10 @@
 #include <array>
 #include <stdfloat>
 #include <expected>
+#include <string_view>
 
 #include "gatt_database.hpp"
+#include "common.hpp"
 #include "utils.hpp"
 
 #define APP_AD_FLAGS 0x06
@@ -22,7 +24,7 @@ namespace bps::ble::gatt {
 class GattServer {
     public:
         // Predefined type for convenience usages
-        using actionCallback_t = void (*)(void* context, std::expected<Action, Error<std::byte>>);
+        using actionCallback_t = void (*)(void* context, std::expected<Action, Error<std::byte>> action);
         using pressureBaseValueCallback_t = void (*)(void* context, PressureBaseValue const& base_value);
 
         // Meyers' Singleton basic constructor settings
@@ -44,16 +46,16 @@ class GattServer {
         // == Setters, only allow to set data readable by client  ==
         // =========================================================
         
-        GattServer& setMachineStatus(
+        GattServer& sendMachineStatus(
             MachineStatus const& status
         ) noexcept;
 
-        GattServer& setPulseValueSet(
+        GattServer& sendPulseValueSet(
             PulseValueSet const& value_set
         ) noexcept;
 
-        GattServer& setPulseValueSet(
-            std::float64_t const& timestemp,
+        GattServer& sendPulseValueSet(
+            std::uint64_t  const& timestemp,
             std::float32_t const& cun,
             std::float32_t const& guan,
             std::float32_t const& chi
@@ -143,7 +145,7 @@ class GattServer {
                 ) noexcept;
 
                 CustomCharacteristics& setPulseValueSet(
-                    std::float64_t const& timestemp,
+                    std::uint64_t  const& timestemp,
                     std::float32_t const& cun,
                     std::float32_t const& guan,
                     std::float32_t const& chi
@@ -215,26 +217,7 @@ class GattServer {
         void* pressure_base_value_context{nullptr};
 
         // Btstack packet handlers
-        static void packetHandler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
-        void handleEvent(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
-
-        // Trampoline function for btstack callback functions
-        // Keep the type same as the interface provided by btstack
-        static uint16_t attReadCallbackTrampoline(
-            hci_con_handle_t con_handle,
-            uint16_t attribute_handle,
-            uint16_t offset,
-            uint8_t* buffer,
-            uint16_t buffer_size
-        ) noexcept;
-        static int attWriteCallbackTrampoline(
-            hci_con_handle_t con_handle,
-            uint16_t attribute_handle,
-            uint16_t transaction_mode,
-            uint16_t offset,
-            unsigned char *buffer,
-            uint16_t buffer_size
-        ) noexcept;
+        void packetHandler(uint8_t packet_type, uint16_t channel, uint8_t* packet, uint16_t size);
 
         // Real att read / write callback
         uint16_t attReadCallback(

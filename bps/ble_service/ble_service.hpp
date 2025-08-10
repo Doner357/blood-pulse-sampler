@@ -4,8 +4,10 @@
 #include <btstack_run_loop.h>
 
 #include <cstdint>
+#include <optional>
 
-#include "utils.hpp"
+#include "common.hpp"
+#include "queue.hpp"
 #include "gatt_server/gatt_server.hpp"
 
 namespace bps::ble {
@@ -13,9 +15,6 @@ namespace bps::ble {
 // Meyers' Singleton Implementation
 class BleService {
     public:
-        // Predefined type for convenience usages
-        using actionCallback_t = void (*)(void* context, Action action);
-        using pressureBaseValueCallback_t = void (*)(void* context, PressureBaseValue base_value);
 
         // Meyers' Singleton basic constructor settings
         static BleService& getInstance() noexcept {
@@ -32,33 +31,25 @@ class BleService {
 
         // Create a freertos task
         // ! This must be done once before running !
-        bool createTask() noexcept;
-
+        bool createTask(UBaseType_t const& priority) noexcept;
+        
         // Senders, send data to the ouput queue
+        // == Note ============================================================================
+        //     This will block the caller's task for below time:
+        //         Machine Status : 5 ms
+        //         Pulse Value Set: 5 ms
+        // ====================================================================================
         bool sendMachineStatus(MachineStatus const& machine_status) noexcept;
         bool sendPulseValueSet(PulseValueSet const& value_set) noexcept;
 
-        // Register the action & pressure base value callback which will be called
-        // when value has been written
-        void registerActionCallback(actionCallback_t callback, void* context) noexcept;
-        void registerPressureBaseValueCallback(pressureBaseValueCallback_t callback, void* context) noexcept;
-        
+        // Register action and pressure base value queue
+        void registerActionQueue(QueueHandle_t const& handle) noexcept;
+        void registerPressureBaseValueQueue(QueueHandle_t const& handle) noexcept;
 
     private:
-        BleService() {}
-
-        static constexpr UBaseType_t kLengthOfActionQueue            = 3;
-        static constexpr UBaseType_t kLengthOfPressureBaseValueQueue = 3;
+        BleService();
         static constexpr UBaseType_t kLengthOfMachineStatusQueue     = 3;
         static constexpr UBaseType_t kLengthOfPulseValueSetQueue     = 255;
-        using ActionQueue_t            = StaticQueue<
-                                            Action,
-                                            kLengthOfActionQueue
-                                        >;
-        using PressureBaseValueQueue_t = StaticQueue<
-                                            PressureBaseValue,
-                                            kLengthOfPressureBaseValueQueue
-                                        >;
         using MachineStatusQueue_t     =  StaticQueue<
                                             MachineStatus, 
                                             kLengthOfMachineStatusQueue
@@ -67,20 +58,24 @@ class BleService {
                                             PulseValueSet, 
                                             kLengthOfPulseValueSetQueue
                                         >;
-        ActionQueue_t            action_queue{};
-        PressureBaseValueQueue_t pressure_base_value_queue{};
-        MachineStatusQueue_t     machine_status_queue{};
-        PulseValueSetQueue_t     pulse_value_set_queue{};
+
+        MachineStatusQueue_t machine_status_queue{};
+        PulseValueSetQueue_t pulse_value_set_queue{};
+
+        StaticQueueSet<
+            MachineStatusQueue_t,
+            PulseValueSetQueue_t
+        > queue_set = makeQueueSet(
+            this->machine_status_queue,
+            this->pulse_value_set_queue
+        );
+
+        std::optional<QueueHandle_t> action_queue_handle{};
+        std::optional<QueueHandle_t> pressure_base_value_handle{};
 
         // FreeRTOS task
-        TaskHandle_t             task_handle{nullptr};
+        TaskHandle_t task_handle{nullptr};
         void taskLoop() noexcept;
-
-        // action & pressure base value callback registered by user
-        actionCallback_t action_callback{nullptr};
-        pressureBaseValueCallback_t pressure_base_value_callback{nullptr};
-        void* action_callback_context{nullptr};
-        void* pressure_base_value_context{nullptr};
 };
 
 } // bps::gatt

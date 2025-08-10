@@ -6,19 +6,24 @@
 #include <array>
 #include <cstddef>
 #include <utility>
+#include <expected>
 
-#include "utils.hpp"
+#include "common.hpp"
+#include "queue.hpp"
 #include "gatt_server/gatt_server.hpp"
 
 namespace bps::ble {
+
+BleService::BleService() {}
 
 void BleService::initialize() noexcept {
     // Initialize GATT server
     auto& gatt_server = gatt::GattServer::getInstance();
     gatt_server.initialize();
+    gatt_server.on();
 }
 
-bool BleService::createTask() noexcept {
+bool BleService::createTask(UBaseType_t const& priority) noexcept {
     static auto freertos_task = 
         [](void* context) {
             BleService* service = static_cast<BleService*>(context);
@@ -29,84 +34,68 @@ bool BleService::createTask() noexcept {
         "BLE Service",
         2048,
         this,
-        1,
+        priority,
         &this->task_handle
     );
 }
 
 bool BleService::sendMachineStatus(MachineStatus const& machine_status) noexcept {
-    return this->machine_status_queue.send(machine_status, 15);
+    return this->machine_status_queue.send(machine_status, pdMS_TO_TICKS(5));
 }
 
 bool BleService::sendPulseValueSet(PulseValueSet const& value_set) noexcept {
-    return this->pulse_value_set_queue.send(value_set, 15);
+    return this->pulse_value_set_queue.send(value_set, pdMS_TO_TICKS(5));
 }
 
-void BleService::registerActionCallback(actionCallback_t callback, void* context) noexcept {
-    this->action_callback = callback;
-    this->action_callback_context = context;
-
-    // Initialize GATT action write callback
-    gatt::GattServer& gatt_server = gatt::GattServer::getInstance();
-    static auto server_action_callback = 
-        [](void* pass_context, std::expected<Action, Error<std::byte>> action) {
-            BleService* service = reinterpret_cast<BleService*>(pass_context);
-            if (action) {
-                service->action_queue.sendFromIsr(action.value(), nullptr);
-            } else {
-                /* TODO: Error Handling */
-            }
-        };
-    gatt_server.registerActionCallback(server_action_callback, this);
+void BleService::registerActionQueue(QueueHandle_t const& handle) noexcept {
+    if (!handle) return;
+    this->action_queue_handle = handle;
+    static auto action_callback = [](void* context, std::expected<Action, Error<std::byte>> action) {
+        QueueHandle_t queue_handle = reinterpret_cast<QueueHandle_t>(context);
+        if (action) {
+            xQueueSend(queue_handle, &action.value(), pdMS_TO_TICKS(1000));
+        } else {
+            /* Error Handling */
+        }
+    };
+    gatt::GattServer::getInstance().registerActionCallback(action_callback, handle);
 }
 
-void BleService::registerPressureBaseValueCallback(pressureBaseValueCallback_t callback, void* context) noexcept {
-    this->pressure_base_value_callback = callback;
-    this->pressure_base_value_context = context;
-
-    // Initialize GATT action write callback
-    gatt::GattServer& gatt_server = gatt::GattServer::getInstance();
-    static auto server_base_value_callback = 
-        [](void* pass_context, PressureBaseValue const& base_value) {
-            BleService* service = reinterpret_cast<BleService*>(pass_context);
-            service->pressure_base_value_queue.sendFromIsr(base_value, nullptr);
-        };
-    gatt_server.registerPressureBaseValueCallback(server_base_value_callback, this);
+void BleService::registerPressureBaseValueQueue(QueueHandle_t const& handle) noexcept {
+    if (!handle) return;
+    this->pressure_base_value_handle = handle;
+    static auto pressure_base_value_callback = [](void* context, PressureBaseValue const& base_value) {
+        QueueHandle_t queue_handle = reinterpret_cast<QueueHandle_t>(context);
+        xQueueSend(queue_handle, &base_value, pdMS_TO_TICKS(1000));
+    };
+    gatt::GattServer::getInstance().registerPressureBaseValueCallback(pressure_base_value_callback, handle);
 }
 
 void BleService::taskLoop() noexcept {
-    static Action action{};
-    static PressureBaseValue base_value{};
-    static MachineStatus machine_status{};
-    static PulseValueSet pulse_value_set{};
     while (true) {
-        // Deal the values
-        gatt::GattServer& gatt_server = gatt::GattServer::getInstance();
-        
-        if (this->machine_status_queue.receive(machine_status, 0)) {
-            gatt_server.setMachineStatus(std::move(machine_status));
-        }
+        static std::expected<QueueHandle_t, std::nullptr_t> selected_handle{};
+        if ((selected_handle = this->queue_set.selectFromSet(pdMS_TO_TICKS(portMAX_DELAY)))) {
+            if (selected_handle == this->machine_status_queue.getFreeRTOSQueueHandle()) {
+                static MachineStatus status{};
+                if (this->machine_status_queue.receive(status, pdMS_TO_TICKS(1000))) {
+                    gatt::GattServer::getInstance().sendMachineStatus(status);
+                } else {
+                    /* Error Handling */
+                }
+                
+            } else if (selected_handle == this->pulse_value_set_queue.getFreeRTOSQueueHandle()) {
+                static PulseValueSet value_set{};
+                if (this->pulse_value_set_queue.receive(value_set, pdMS_TO_TICKS(5))) {
+                    gatt::GattServer::getInstance().sendPulseValueSet(value_set);
+                } else {
+                    /* Error Handling */
+                }
 
-        if (this->pulse_value_set_queue.receive(pulse_value_set, 0)) {
-            gatt_server.setPulseValueSet(std::move(pulse_value_set));
-        }
+            }
 
-        if (this->action_callback != nullptr && this->action_queue.receive(action, 0)) {
-            this->action_callback(this->action_callback_context, std::move(action));
+        } else {
+            /* TODO: Error Handling */
         }
-
-        if (
-            this->pressure_base_value_callback != nullptr &&
-            this->pressure_base_value_queue.receive(base_value, 0)
-        ) {
-            this->pressure_base_value_callback(
-                this->pressure_base_value_context,
-                std::move(base_value)
-            );
-        }
-
-        /* Do something else */
-        vTaskDelay(TickType_t(5));
     }
     
     /* Optional: Error Handling */
