@@ -39,36 +39,38 @@ bool BleService::createTask(UBaseType_t const& priority) noexcept {
     );
 }
 
-bool BleService::sendMachineStatus(MachineStatus const& machine_status) noexcept {
-    return this->machine_status_queue.send(machine_status, pdMS_TO_TICKS(5));
+MachineStatusQueue_t& BleService::getMachineStatusQueue() noexcept {
+    return this->machine_status_queue;
 }
 
-bool BleService::sendPulseValueSet(PulseValueSet const& value_set) noexcept {
-    return this->pulse_value_set_queue.send(value_set, pdMS_TO_TICKS(5));
+PulseValueSetQueue_t& BleService::getPulseValueSetQueue() noexcept {
+    return this->pulse_value_set_queue;
 }
 
-void BleService::registerActionQueue(QueueHandle_t const& handle) noexcept {
-    if (!handle) return;
-    this->action_queue_handle = handle;
+void BleService::registerActionQueue(ActionQueue_t& queue) noexcept {
+    if (!queue.isValid()) return;
+    this->action_queue = &queue;
     static auto action_callback = [](void* context, std::expected<Action, Error<std::byte>> action) {
-        QueueHandle_t queue_handle = reinterpret_cast<QueueHandle_t>(context);
+        auto send_queue = reinterpret_cast<ActionQueue_t*>(context);
         if (action) {
-            xQueueSend(queue_handle, &action.value(), pdMS_TO_TICKS(1000));
+            // This lambda will be called by the GattServer, so there shouldn't be any delay.
+            send_queue->send(action.value(), 0);
         } else {
             /* Error Handling */
         }
     };
-    gatt::GattServer::getInstance().registerActionCallback(action_callback, handle);
+    gatt::GattServer::getInstance().registerActionCallback(action_callback, &queue);
 }
 
-void BleService::registerPressureBaseValueQueue(QueueHandle_t const& handle) noexcept {
-    if (!handle) return;
-    this->pressure_base_value_handle = handle;
+void BleService::registerPressureBaseValueQueue(PressureBaseValueQueue_t& queue) noexcept {
+    if (!queue.isValid()) return;
+    this->pressure_base_value_queue = &queue;
     static auto pressure_base_value_callback = [](void* context, PressureBaseValue const& base_value) {
-        QueueHandle_t queue_handle = reinterpret_cast<QueueHandle_t>(context);
-        xQueueSend(queue_handle, &base_value, pdMS_TO_TICKS(1000));
+        auto send_queue = reinterpret_cast<PressureBaseValueQueue_t*>(context);
+        // This lambda will be called by the GattServer, so there shouldn't be any delay.
+        send_queue->send(base_value, 0);
     };
-    gatt::GattServer::getInstance().registerPressureBaseValueCallback(pressure_base_value_callback, handle);
+    gatt::GattServer::getInstance().registerPressureBaseValueCallback(pressure_base_value_callback, &queue);
 }
 
 void BleService::taskLoop() noexcept {

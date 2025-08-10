@@ -14,7 +14,7 @@
 namespace bps {
 
 template<typename Q>
-concept QueueWrapper = requires(
+concept QueueType = requires(
     Q queue, 
     typename Q::ContentType content,
     TickType_t wait_tick
@@ -25,7 +25,7 @@ concept QueueWrapper = requires(
 };
 
 template<typename Q>
-concept StaticQueueWrapper = QueueWrapper<Q> && requires() {
+concept StaticQueueType = QueueType<Q> && requires() {
     { Q::length() } -> std::same_as<UBaseType_t>;
 };
 
@@ -121,7 +121,7 @@ class StaticQueue {
         QueueHandle_t queue_handle{nullptr};
 };
 
-template<StaticQueueWrapper... Qs>
+template<StaticQueueType... Qs>
 class StaticQueueSet {
         // The combined length of the all queues and that will be
         // added to the queue set.
