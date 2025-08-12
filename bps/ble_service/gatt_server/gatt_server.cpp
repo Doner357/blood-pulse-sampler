@@ -12,6 +12,7 @@
 #include <expected>
 #include <string_view>
 
+#include "common.hpp"
 #include "utils.hpp"
 #include "gatt_database.hpp"
 
@@ -34,7 +35,7 @@ constexpr uint16_t adv_int_min = 800;
 constexpr uint16_t adv_int_max = 800;
 constexpr std::uint8_t adv_type = 0;
 
-} // anymous namespace
+} // anonymous namespace
 
 // ================================================================================================
 // == GattServer::CustomCaracteristics                                                           ==
@@ -144,7 +145,7 @@ GattServer::CustomCharacteristics& GattServer::CustomCharacteristics::setPulseVa
 }
 
 GattServer::CustomCharacteristics& GattServer::CustomCharacteristics::setPulseValueSet(
-    std::float64_t const& timestemp,
+    std::uint64_t  const& timestemp,
     std::float32_t const& cun,
     std::float32_t const& guan,
     std::float32_t const& chi
@@ -242,8 +243,33 @@ std::uint16_t GattServer::CustomCharacteristics::getPulseValueSetClientConfigura
 GattServer::GattServer() : hci_con_handle(HCI_CON_HANDLE_INVALID) {
     this->service_handler.start_handle = Att::Handle::CustomCharacteristic::kStart;
     this->service_handler.end_handle = Att::Handle::CustomCharacteristic::kEnd;
-    this->service_handler.read_callback = &GattServer::attReadCallbackTrampoline;
-    this->service_handler.write_callback = &GattServer::attWriteCallbackTrampoline;
+
+    static att_read_callback_t att_read_callback = 
+        [](
+            hci_con_handle_t con_handle,
+            uint16_t attribute_handle,
+            uint16_t offset,
+            uint8_t* buffer,
+            uint16_t buffer_size
+        ) noexcept {
+            GattServer& gatt_server = GattServer::getInstance();
+            return gatt_server.attReadCallback(con_handle, attribute_handle, offset, buffer, buffer_size);
+        };
+    this->service_handler.read_callback = att_read_callback;
+    
+    static att_write_callback_t att_write_callback =
+        [](
+            hci_con_handle_t con_handle,
+            uint16_t attribute_handle,
+            uint16_t transaction_mode,
+            uint16_t offset,
+            unsigned char *buffer,
+            uint16_t buffer_size
+        ) noexcept {
+            GattServer& gatt_server = GattServer::getInstance();
+            return gatt_server.attWriteCallback(con_handle, attribute_handle, transaction_mode, offset, buffer, buffer_size);
+        };
+    this->service_handler.write_callback = att_write_callback;
 }
 
 void GattServer::initialize() noexcept {
@@ -261,11 +287,21 @@ void GattServer::initialize() noexcept {
     att_server_register_service_handler(&this->service_handler);
     
     // inform about BTstack state
-    this->hci_event_callback_registration.callback = &GattServer::packetHandler;
+    static btstack_packet_handler_t packet_handler =
+        [](
+            uint8_t packet_type,
+            uint16_t channel,
+            uint8_t* packet,
+            uint16_t size
+        ) noexcept {
+            GattServer& instance = GattServer::getInstance();
+            instance.packetHandler(packet_type, channel, packet, size);
+        };
+    this->hci_event_callback_registration.callback = packet_handler;
     hci_add_event_handler(&this->hci_event_callback_registration);
 
     // register for ATT event
-    att_server_register_packet_handler(&GattServer::packetHandler);
+    att_server_register_packet_handler(packet_handler);
 }
 
 std::expected<int, Error<int>> GattServer::on() noexcept {
@@ -284,17 +320,7 @@ std::expected<int, Error<int>> GattServer::off() noexcept {
     return status;
 }
 
-void GattServer::packetHandler (
-    uint8_t packet_type,
-    uint16_t channel,
-    uint8_t* packet,
-    uint16_t size
-) {
-    GattServer& instance = GattServer::getInstance();
-    instance.handleEvent(packet_type, channel, packet, size);
-}
-
-void GattServer::handleEvent(
+void GattServer::packetHandler(
     uint8_t packet_type,
     [[maybe_unused]] uint16_t channel,
     uint8_t* packet,
@@ -368,7 +394,7 @@ void GattServer::handleEvent(
 }
 
 // Setters, only allow to set Writable data
-GattServer& GattServer::setMachineStatus(
+GattServer& GattServer::sendMachineStatus(
     MachineStatus const& status
 ) noexcept {
     this->characteristics.setMachineStatus(status);
@@ -381,7 +407,7 @@ GattServer& GattServer::setMachineStatus(
     return *this;
 }
 
-GattServer& GattServer::setPulseValueSet(
+GattServer& GattServer::sendPulseValueSet(
     PulseValueSet const& value_set
 ) noexcept {
     this->characteristics.setPulseValueSet(value_set);
@@ -394,13 +420,13 @@ GattServer& GattServer::setPulseValueSet(
     return *this;
 }
 
-GattServer& GattServer::setPulseValueSet(
-    std::float64_t const& timestemp,
+GattServer& GattServer::sendPulseValueSet(
+    std::uint64_t  const& timestemp,
     std::float32_t const& cun,
     std::float32_t const& guan,
     std::float32_t const& chi
 ) noexcept {
-    return this->setPulseValueSet(
+    return this->sendPulseValueSet(
         PulseValueSet {
             .timestemp = timestemp,
             .cun = cun,
@@ -418,29 +444,6 @@ void GattServer::registerActionCallback(actionCallback_t callback, void* context
 void GattServer::registerPressureBaseValueCallback(pressureBaseValueCallback_t callback, void* context) noexcept {
     this->pressure_base_value_callback = callback;
     this->pressure_base_value_context = context;
-}
-
-uint16_t GattServer::attReadCallbackTrampoline(
-    hci_con_handle_t con_handle,
-    uint16_t attribute_handle,
-    uint16_t offset,
-    uint8_t* buffer,
-    uint16_t buffer_size
-) noexcept {
-    GattServer& gatt_server = GattServer::getInstance();
-    return gatt_server.attReadCallback(con_handle, attribute_handle, offset, buffer, buffer_size);
-}
-
-int GattServer::attWriteCallbackTrampoline(
-    hci_con_handle_t con_handle,
-    uint16_t attribute_handle,
-    uint16_t transaction_mode,
-    uint16_t offset,
-    unsigned char *buffer,
-    uint16_t buffer_size
-) noexcept {
-    GattServer& gatt_server = GattServer::getInstance();
-    return gatt_server.attWriteCallback(con_handle, attribute_handle, transaction_mode, offset, buffer, buffer_size);
 }
 
 // Real att read / write callback

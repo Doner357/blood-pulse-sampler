@@ -33,45 +33,15 @@ project(blood-pulse-sampler C CXX ASM)
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
 
-# ======== FreeRTOS ========
-# Fetch RTOS
-FetchContent_Declare( freertos_kernel
-  GIT_REPOSITORY https://github.com/FreeRTOS/FreeRTOS-Kernel.git
-  GIT_TAG        V11.2.0 #Note: Best practice to use specific git-hash or tagged version
-)
-
-# FreeRTOS Configurations
-add_library(freertos_config INTERFACE)
-
-target_include_directories(freertos_config SYSTEM
-INTERFACE
-    "${CMAKE_CURRENT_LIST_DIR}/freertos"
-)
-
-target_compile_definitions(freertos_config
-INTERFACE
-    projCOVERAGE_TEST=0
-)
-
-# In case of cross compilation
-# target_compile_definitions(freertos_config INTERFACE ${definitions})
-# target_compile_options(freertos_config INTERFACE ${options})
-
-# Select TEMPLATE as port since RP2350 has not been add to
-# FreeRTOS default provided port
-set( FREERTOS_HEAP "4" CACHE STRING "" FORCE)
-# Select the native compile PORT
-set( FREERTOS_PORT "TEMPLATE" CACHE STRING "" FORCE)
-# Select the cross-compile PORT
-if (CMAKE_CROSSCOMPILING)
-  set(FREERTOS_PORT "TEMPLATE" CACHE STRING "" FORCE)
-endif()
-
-FetchContent_MakeAvailable(freertos_kernel)
-set(FREERTOS_KERNEL_PATH ${freertos_kernel_SOURCE_DIR})
-include(FreeRTOS_Kernel_import.cmake)
-
-# ==========================
+# == FreeRTOS ========================================================================
+# -----------------------------------------------------------------------------------
+# Note:
+#   On RP2350, you must initialize the submodules of the FreeRTOS-Kernel repository.
+# -----------------------------------------------------------------------------------
+# Add freertos as subdirectory, you can link to "freertos_kernel" to use necessary features
+# required by this project.
+add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/freertos")
+# ====================================================================================
 
 # Custom compile options
 add_library(compile_options INTERFACE)
@@ -104,8 +74,8 @@ target_include_directories(blood-pulse-sampler PRIVATE
 
 # Add any user requested libraries
 target_link_libraries(blood-pulse-sampler
-        hardware_i2c
         bps_service
+        freertos_kernel
 )
 
 # Link to compile options interface

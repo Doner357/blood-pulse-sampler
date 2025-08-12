@@ -21,7 +21,8 @@ target_link_libraries(bps_gatt_server
         compile_options
     PUBLIC
         bps_common
-        pico_btstack_ble
-        pico_btstack_cyw43
+        pico_async_context_freertos
         pico_cyw43_arch_none
+        pico_btstack_cyw43
+        pico_btstack_ble
 )
