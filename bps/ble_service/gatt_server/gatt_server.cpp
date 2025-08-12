@@ -35,7 +35,7 @@ constexpr uint16_t adv_int_min = 800;
 constexpr uint16_t adv_int_max = 800;
 constexpr std::uint8_t adv_type = 0;
 
-} // anymous namespace
+} // anonymous namespace
 
 // ================================================================================================
 // == GattServer::CustomCaracteristics                                                           ==

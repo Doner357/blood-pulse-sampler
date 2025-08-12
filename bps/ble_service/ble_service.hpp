@@ -4,7 +4,6 @@
 #include <btstack_run_loop.h>
 
 #include <cstdint>
-#include <optional>
 
 #include "common.hpp"
 #include "queue.hpp"
@@ -33,7 +32,7 @@ class BleService {
         // ! This must be done once before running !
         bool createTask(UBaseType_t const& priority) noexcept;
         
-        // Get the FreeRTOS queue handle
+        // Get the input queue (like setters reference)
         MachineStatusQueue_t& getMachineStatusQueue() noexcept;
         PulseValueSetQueue_t& getPulseValueSetQueue() noexcept;
 
@@ -44,8 +43,8 @@ class BleService {
     private:
         BleService();
 
-        std::optional<ActionQueue_t*> action_queue{};
-        std::optional<PressureBaseValueQueue_t*> pressure_base_value_queue{};
+        ActionQueue_t* output_action_queue_ptr{nullptr};
+        PressureBaseValueQueue_t* output_pressure_base_value_queue_ptr{nullptr};
         MachineStatusQueue_t machine_status_queue{};
         PulseValueSetQueue_t pulse_value_set_queue{};
 
@@ -56,9 +55,6 @@ class BleService {
             this->machine_status_queue,
             this->pulse_value_set_queue
         );
-
-        std::optional<QueueHandle_t> action_queue_handle{};
-        std::optional<QueueHandle_t> pressure_base_value_handle{};
 
         // FreeRTOS task
         TaskHandle_t task_handle{nullptr};

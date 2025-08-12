@@ -14,9 +14,11 @@ target_link_libraries(bps_common
 )
 
 add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/ble_service")
+add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/pneumatic")
 
 add_library(bps_service STATIC)
 target_link_libraries(bps_service
     PUBLIC
         bps_ble_service
+        bps_pneumatic
 )

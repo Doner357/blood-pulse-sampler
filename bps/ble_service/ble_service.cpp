@@ -36,7 +36,7 @@ bool BleService::createTask(UBaseType_t const& priority) noexcept {
         this,
         priority,
         &this->task_handle
-    );
+    ) == pdPASS;
 }
 
 MachineStatusQueue_t& BleService::getMachineStatusQueue() noexcept {
@@ -49,28 +49,34 @@ PulseValueSetQueue_t& BleService::getPulseValueSetQueue() noexcept {
 
 void BleService::registerActionQueue(ActionQueue_t& queue) noexcept {
     if (!queue.isValid()) return;
-    this->action_queue = &queue;
+    this->output_action_queue_ptr = &queue;
     static auto action_callback = [](void* context, std::expected<Action, Error<std::byte>> action) {
         auto send_queue = reinterpret_cast<ActionQueue_t*>(context);
         if (action) {
             // This lambda will be called by the GattServer, so there shouldn't be any delay.
-            send_queue->send(action.value(), 0);
+            send_queue->sendFromIsr(action.value(), nullptr);
         } else {
             /* Error Handling */
         }
     };
-    gatt::GattServer::getInstance().registerActionCallback(action_callback, &queue);
+    gatt::GattServer::getInstance().registerActionCallback(
+        action_callback,
+        this->output_action_queue_ptr
+    );
 }
 
 void BleService::registerPressureBaseValueQueue(PressureBaseValueQueue_t& queue) noexcept {
     if (!queue.isValid()) return;
-    this->pressure_base_value_queue = &queue;
+    this->output_pressure_base_value_queue_ptr = &queue;
     static auto pressure_base_value_callback = [](void* context, PressureBaseValue const& base_value) {
         auto send_queue = reinterpret_cast<PressureBaseValueQueue_t*>(context);
         // This lambda will be called by the GattServer, so there shouldn't be any delay.
-        send_queue->send(base_value, 0);
+        send_queue->sendFromIsr(base_value, nullptr);
     };
-    gatt::GattServer::getInstance().registerPressureBaseValueCallback(pressure_base_value_callback, &queue);
+    gatt::GattServer::getInstance().registerPressureBaseValueCallback(
+        pressure_base_value_callback,
+        this->output_pressure_base_value_queue_ptr
+    );
 }
 
 void BleService::taskLoop() noexcept {
