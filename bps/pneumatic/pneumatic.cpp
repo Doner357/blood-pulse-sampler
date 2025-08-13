@@ -16,7 +16,13 @@ namespace bps::pneumatic {
 namespace {
 
 // --- Sample Rate (can't less than 120Hz == 8 ms/sample) ---
-constexpr UBaseType_t kSampleRateMs = 8;
+// Note: This is the delay between triggering a pressure conversion and
+//       waiting for the data to be ready.
+//
+// This value is NOT the final sample rate. The actual sample rate depends
+// on the total cycle time, which includes this delay, data processing,
+// and other overhead.
+constexpr UBaseType_t kSampleRateMs = 6;
 
 // --- I2C Multiplexer (TCA9548A) Constants ---
 constexpr std::uint8_t kMuxI2cAddr         = 0x70;     // Default TCA9548A I2C address (A0,A1,A2 to GND)
@@ -141,10 +147,6 @@ std::expected<PulseValueSet, Error<int>> readPressureSensorPipelined() noexcept 
         if (!selectMuxChannel(i)) {
             return std::unexpected(Error<int>{ ErrorType::eFailedOperation, PICO_ERROR_GENERIC });
         }
-        // Check conversion status
-        if (!checkSensorConversionStatus()) {
-            return std::unexpected(Error<int>{ ErrorType::eFailedOperation, PICO_ERROR_GENERIC });
-        }
         
         if (writeToSensor(std::array{ kSensorRegCmd, kSensorCmdStartComb }, false) == PICO_ERROR_GENERIC) {
             return std::unexpected(Error<int>{ ErrorType::eFailedOperation, PICO_ERROR_GENERIC });
@@ -254,34 +256,58 @@ void PneumaticService::registerPulseValueSetQueue(PulseValueSetQueue_t& queue) n
 
 void PneumaticService::taskLoop() noexcept {
     while (true) {
-        static std::expected<QueueHandle_t, std::nullptr_t> selected_handle{};
-        if ((selected_handle = this->queue_set.selectFromSet(pdMS_TO_TICKS(portMAX_DELAY)))) {
-            if (selected_handle == this->action_queue.getFreeRTOSQueueHandle()) {
-                static Action action{};
-                this->action_queue.receive(action, pdMS_TO_TICKS(0));
-                if (action.action_type == ActionType::eStartSampling) {
-                    processSampling();
-                }
-            } else if (selected_handle == this->pressure_base_value_queue.getFreeRTOSQueueHandle()) {
-                updatePressureBaseValue();
-            }
-        }
+        updateCurrentStatus();
+        processCurrentStatus();
     }
     /* Optional: Error handling */
 }
 
-void PneumaticService::processSampling() noexcept {
-    for (std::size_t i = 0; i < 7000; ++i) {
-        auto value_set = readPressureSensorPipelined();
-        if (this->output_pulse_value_set_queue_ptr != nullptr && value_set.has_value()) {
-            auto& set = value_set.value();
-            output_pulse_value_set_queue_ptr->send(value_set.value(), pdMS_TO_TICKS(0));
-        }        
+void PneumaticService::updateCurrentStatus() noexcept {
+    static std::expected<QueueHandle_t, std::nullptr_t> selected_handle{};
+    if ((selected_handle = this->queue_set.selectFromSet(pdMS_TO_TICKS(0)))) {
+        if (selected_handle == this->action_queue.getFreeRTOSQueueHandle()) {
+            static Action new_action{};
+            this->action_queue.receive(new_action, pdMS_TO_TICKS(0));
+            if (
+                new_action.action_type == ActionType::eStartSampling &&
+                this->current_action.action_type == ActionType::eStopSampling
+            ) {
+                this->remain_samples = kNeedSamples;
+            } else if (
+                new_action.action_type == ActionType::eStopSampling &&
+                this->current_action.action_type == ActionType::eStartSampling
+            ) {
+                this->remain_samples = 0;
+            }
+            this->current_action = new_action;
+        } else if (selected_handle == this->pressure_base_value_queue.getFreeRTOSQueueHandle()) {
+            this->pressure_base_value_queue.receive(this->current_pressure_base_value, pdMS_TO_TICKS(0));
+        }
     }
 }
 
-void PneumaticService::updatePressureBaseValue() noexcept {
-
+void PneumaticService::processCurrentStatus() noexcept {
+    static std::expected<bps::PulseValueSet, bps::Error<int>> value_set{};
+    switch (this->current_action.action_type) {
+    case ActionType::eStopSampling:
+        /* TODO: Stopping air pumps and open the valves */
+        break;
+    case ActionType::eStartSampling:
+        value_set = readPressureSensorPipelined();
+        if (this->output_pulse_value_set_queue_ptr != nullptr && value_set.has_value()) {
+            output_pulse_value_set_queue_ptr->send(value_set.value(), pdMS_TO_TICKS(0));
+        }
+        if ((--this->remain_samples) == 0) {
+            this->current_action.action_type = ActionType::eStopSampling;
+        }
+        break;
+    case ActionType::eNull:
+        vTaskDelay(pdMS_TO_TICKS(10));
+        break;
+    default:
+        vTaskDelay(pdMS_TO_TICKS(10));
+        break;
+    }
 }
 
 } // namespace bps::pneumatic

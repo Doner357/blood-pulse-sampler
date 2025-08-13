@@ -52,8 +52,20 @@ class PneumaticService {
         // FreeRTOS task
         TaskHandle_t task_handle{nullptr};
         void taskLoop() noexcept;
-        void processSampling() noexcept;
-        void updatePressureBaseValue() noexcept;
+
+        void updateCurrentStatus() noexcept;
+        void processCurrentStatus() noexcept;
+
+        // Status storage
+        static constexpr std::size_t kNeedSamples = 2000;
+        Action current_action{
+            ActionType::eStopSampling, PressureType::eNull, PressureType::eNull, PressureType::eNull
+        };
+        std::size_t remain_samples = 0;
+
+        PressureBaseValue current_pressure_base_value{
+            0.0_pa, 0.0_pa, 0.0_pa
+        };
 };
 
 } // namespace bps::pneumatic
