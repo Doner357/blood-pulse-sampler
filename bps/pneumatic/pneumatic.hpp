@@ -41,9 +41,19 @@ class PneumaticService {
         PressureBaseValueQueue_t pressure_base_value_queue{};
         PulseValueSetQueue_t* output_pulse_value_set_queue_ptr{nullptr};
 
+        StaticQueueSet<
+            ActionQueue_t,
+            PressureBaseValueQueue_t
+        > queue_set = makeQueueSet(
+            this->action_queue,
+            this->pressure_base_value_queue
+        );
+
         // FreeRTOS task
         TaskHandle_t task_handle{nullptr};
         void taskLoop() noexcept;
+        void processSampling() noexcept;
+        void updatePressureBaseValue() noexcept;
 };
 
 } // namespace bps::pneumatic

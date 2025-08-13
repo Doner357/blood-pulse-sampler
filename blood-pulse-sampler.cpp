@@ -12,6 +12,7 @@ int main() {
     pneumatic_service.initialize();
 
     pneumatic_service.registerPulseValueSetQueue(ble_service.getPulseValueSetQueue());
+    ble_service.registerActionQueue(pneumatic_service.getActionQueue());
 
     ble_service.createTask(2);
     pneumatic_service.createTask(1);
