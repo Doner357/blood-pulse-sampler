@@ -37,8 +37,8 @@ concept ByteTypes = (sizeof(T) == 1u);
 // Type of Action
 enum class ActionType : std::uint8_t {
     eNull          = 0X00,
-    eStopSampling  = 0x40,
-    eStartSampling = 0x50
+    eStopSampling  = 0x01,
+    eStartSampling = 0x02
 };
 // Helper function, convert each byte type value to ActionType enum class
 // Return std::nullopt optional if there is no matched enum
@@ -131,7 +131,7 @@ struct PulseValueSet {
 using ActionQueue_t            = StaticQueue<Action, 3>;
 using PressureBaseValueQueue_t = StaticQueue<PressureBaseValue, 3>;
 using MachineStatusQueue_t     = StaticQueue<MachineStatus, 3>;
-using PulseValueSetQueue_t     = StaticQueue<PulseValueSet, 255>;
+using PulseValueSetQueue_t     = StaticQueue<PulseValueSet, 1024>;
 
 } // namespace bps
 

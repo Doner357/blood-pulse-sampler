@@ -5,12 +5,21 @@
 #include <pico/binary_info.h>
 #include <pico/time.h>
 
+#include <FreeRTOS.h>
+#include <task.h>
+
+#include <expected>
+#include <stdfloat>
+
 namespace bps::pneumatic {
 
 namespace {
 
+// --- Sample Rate (can't less than 120Hz == 8 ms/sample) ---
+constexpr UBaseType_t kSampleRateMs = 8;
+
 // --- I2C Multiplexer (TCA9548A) Constants ---
-constexpr std::uint8_t kMuxI2cAddr        = 0x70;     // Default TCA9548A I2C address (A0,A1,A2 to GND)
+constexpr std::uint8_t kMuxI2cAddr         = 0x70;     // Default TCA9548A I2C address (A0,A1,A2 to GND)
 
 // --- Sensor Specific Constants (XGZP6857D) ---
 constexpr std::uint8_t kSensorI2cAddr      = 0x6D;
@@ -20,12 +29,17 @@ constexpr std::uint8_t kSensorRegPressMsb  = 0x06;
 constexpr std::uint8_t kSensorRegPressCsb  = 0x07;
 constexpr std::uint8_t kSensorRegPressLsb  = 0x08;
 constexpr std::uint8_t kSensorRegTempMsb   = 0x09;
-constexpr std::uint8_t SENSOR_REG_TEMP_LSB = 0x0A;
+constexpr std::uint8_t kSensorRegTempLsb = 0x0A;
 
 // !!! IMPORTANT: Set kKValue based on your sensor's specific pressure range !!!
 // Example for a 0-100kPa sensor, K is 64.
 constexpr float kKValue = 64.0f;
 constexpr int kNumSensors = 3; // We are reading three sensors
+
+// --- Mapping Sensors ID to three measured position ---
+constexpr int kCunSensorId  = 0;
+constexpr int kGuanSensorId = 1;
+constexpr int kChiSensorId  = 2;
 
 // I2C Defines
 constexpr i2c_inst_t* kI2cPortInstance = i2c0;
@@ -34,106 +48,156 @@ constexpr uint kI2cSclPinNum = 5;        // GPIO5 for I2C0 SCL
 constexpr uint32_t kI2cBaudrateHz = (400 * 1000); // 400KHz
 
 // Function to select a channel on the TCA9548A
-bool select_mux_channel(uint8_t channel) {
+inline bool selectMuxChannel(std::uint8_t channel) noexcept {
     if (channel > 7) {
         return false;
     }
-    uint8_t control_byte = 1 << channel; // Create a byte with only the bit for the desired channel set
+    std::uint8_t control_byte = 1 << channel; // Create a byte with only the bit for the desired channel set
     int result = i2c_write_blocking(kI2cPortInstance, kMuxI2cAddr, &control_byte, 1, false);
     if (result < 0) { // PICO_ERROR_GENERIC or PICO_ERROR_TIMEOUT
         return false;
     }
-    // Datasheet mentions "When a channel is selected, the channel becomes active after a stop condition
-    // has been placed on the I2C bus." [cite: 149] The i2c_write_blocking with false for nostop
-    // issues a stop condition.
-    // A small delay might sometimes be beneficial after switching channels, though not strictly specified as required for all cases.
-    // sleep_us(100); // Optional short delay
     return true;
 }
 
 // Function to write a byte to a sensor register (targets kSensorI2cAddr)
-int write_to_sensor(uint8_t reg, uint8_t data) {
-    std::array<uint8_t, 2> buffer = {reg, data};
-    int result = i2c_write_blocking(kI2cPortInstance, kSensorI2cAddr, buffer.data(), buffer.size(), false);
-    if (result < 0) {
-    }
-    return result;
+template <std::size_t N>
+inline int writeToSensor(std::array<std::uint8_t, N> const& buffer, bool const& nostop) noexcept {
+    return i2c_write_blocking(kI2cPortInstance, kSensorI2cAddr, buffer.data(), buffer.size(), nostop);
 }
 
-// Function template to read bytes from sensor registers into a std::array (targets kSensorI2cAddr)
-template <size_t N>
-int read_from_sensor(uint8_t reg_addr, std::array<uint8_t, N>& buffer) {
-    int write_result = i2c_write_blocking(kI2cPortInstance, kSensorI2cAddr, &reg_addr, 1, true);
-    if (write_result < 0) {
-        return write_result;
+template <std::size_t N>
+inline int wirteToSensorAttempt(std::array<std::uint8_t, N> const& buffer, bool const& nostop, std::size_t const& attempts) noexcept {
+    for (std::size_t i = 0; i < attempts; ++i) {
+        int result = writeToSensor(buffer, nostop);
+        if (result != PICO_ERROR_GENERIC) {
+            return result;
+        }
+        if (attempts == 1) {
+            return PICO_ERROR_GENERIC;
+        }
+        vTaskDelay(pdMS_TO_TICKS(1));
     }
-    int read_result = i2c_read_blocking(kI2cPortInstance, kSensorI2cAddr, buffer.data(), buffer.size(), false);
-    if (read_result < 0) {
-        return read_result;
-    }
-    if (static_cast<size_t>(read_result) != N) {
-        return PICO_ERROR_GENERIC;
-    }
-    return read_result;
+
+    return PICO_ERROR_GENERIC;
 }
 
-struct SensorData {
-    float pressure_pa;
-    bool valid;
-};
+template <std::size_t N>
+inline int readFromSensor(std::array<std::uint8_t, N>& buffer, bool const& nostop) noexcept {
+    static_assert(N > 0, "I2C: must write at least one byte.");
+    return i2c_read_blocking(kI2cPortInstance, kSensorI2cAddr, buffer.data(), buffer.size(), nostop);
+}
 
-SensorData read_pressure_sensor() {
-    SensorData data = {0.0f, false};
-
-    if (write_to_sensor(kSensorRegCmd, kSensorCmdStartComb) < 0) {
-        return data;
+template <std::size_t N>
+inline int readFromSensorAttempt(std::array<std::uint8_t, N>& buffer, bool const& nostop, std::size_t const& attempts) noexcept {
+    static_assert(N > 0, "I2C: must write at least one byte.");
+    for (std::size_t i = 0; i < attempts; ++i) {
+        int result = readFromSensor(buffer, nostop);
+        if (result != PICO_ERROR_GENERIC) {
+            return true;
+        }
+        if (attempts == 1) {
+            return PICO_ERROR_GENERIC;
+        }
+        vTaskDelay(pdMS_TO_TICKS(1));
     }
 
+    return PICO_ERROR_GENERIC;
+}
+
+inline bool checkSensorConversionStatus() noexcept {
     uint8_t cmd_status_val = 0;
     std::array<uint8_t, 1> cmd_status_buf;
-    int attempts = 0;
-    bool conversion_done = false;
-    while(attempts < 10) {
-        if (read_from_sensor(kSensorRegCmd, cmd_status_buf) != 1) {
-            vTaskDelay(pdMS_TO_TICKS(1));
-            attempts++;
-            continue;
+    if (writeToSensor(std::array{ kSensorRegCmd }, true) == PICO_ERROR_GENERIC) {
+        return false;
+    }
+    if (readFromSensor(cmd_status_buf, false) != 1) {
+        return false;
+    }
+    cmd_status_val = cmd_status_buf[0];
+    if ((cmd_status_val & 0x08) != 0) {
+        return false;
+    }
+    return true;
+}
+
+inline bool checkSensorConversionStatusAttempts(std::size_t const& attempts) noexcept {
+    for (std::size_t i = 0; i < attempts; ++i) {
+        if (checkSensorConversionStatus()) {
+            return true;
         }
-        cmd_status_val = cmd_status_buf[0];
-        if ((cmd_status_val & 0x08) == 0) {
-            conversion_done = true;
+        if (attempts == 1) {
+            return false;
+        }
+        vTaskDelay(pdMS_TO_TICKS(1));
+    }
+
+    return false;
+}
+
+std::expected<PulseValueSet, Error<int>> readPressureSensorPipelined() noexcept {
+    // Request (Write) the pressure data
+    for (std::size_t i = 0; i < kNumSensors; ++i) {
+        if (!selectMuxChannel(i)) {
+            return std::unexpected(Error<int>{ ErrorType::eFailedOperation, PICO_ERROR_GENERIC });
+        }
+        // Check conversion status
+        if (!checkSensorConversionStatus()) {
+            return std::unexpected(Error<int>{ ErrorType::eFailedOperation, PICO_ERROR_GENERIC });
+        }
+        
+        if (writeToSensor(std::array{ kSensorRegCmd, kSensorCmdStartComb }, false) == PICO_ERROR_GENERIC) {
+            return std::unexpected(Error<int>{ ErrorType::eFailedOperation, PICO_ERROR_GENERIC });
+        }
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(kSampleRateMs));
+
+    PulseValueSet value_set{};
+    // Fetch (Read) the pressure data
+    for (std::size_t i = 0; i < kNumSensors; ++i) {
+        if (!selectMuxChannel(i)) {
+            return std::unexpected(Error<int>{ ErrorType::eFailedOperation, PICO_ERROR_GENERIC });
+        }
+
+        std::array<uint8_t, 3> p_data_arr{};
+        if (writeToSensor(std::array{ kSensorRegPressMsb }, true) < 0) {
+            return std::unexpected(Error<int>{ ErrorType::eFailedOperation, PICO_ERROR_GENERIC });
+        }
+        if (readFromSensor(p_data_arr, false) != 3) {
+            return std::unexpected(Error<int>{ ErrorType::eFailedOperation, PICO_ERROR_GENERIC });
+        }
+        int32_t pressure_adc_raw = static_cast<int32_t>(
+            (static_cast<uint32_t>(p_data_arr[0]) << 16) |
+            (static_cast<uint32_t>(p_data_arr[1]) << 8)  |
+            (static_cast<uint32_t>(p_data_arr[2]))
+        );
+
+        std::float32_t pressure = 0.0_pa;
+        if (pressure_adc_raw & 0x800000) {
+            constexpr int32_t two_to_24 = 16777216L;
+            pressure = static_cast<float>(pressure_adc_raw - two_to_24) / kKValue;
+        } else {
+            pressure = static_cast<float>(pressure_adc_raw) / kKValue;
+        }
+
+        switch (i) {
+        case kCunSensorId:
+            value_set.cun = pressure;
+            break;
+        case kGuanSensorId:
+            value_set.guan = pressure;
+            break;
+        case kChiSensorId:
+            value_set.chi = pressure;
+        default:
             break;
         }
-        vTaskDelay(pdMS_TO_TICKS(1)); // Datasheet typical 5ms, wait a bit between polls
-        attempts++;
     }
 
-    if (!conversion_done) {
-        // Attempting a read after a fixed longer delay as per datasheet alternative
-        vTaskDelay(pdMS_TO_TICKS(25)); // Datasheet suggests 20ms, adding a bit more
-    }
+    value_set.timestemp = get_absolute_time();
 
-    std::array<uint8_t, 3> p_data_arr;
-    int32_t pressure_adc_raw;
-
-    if (read_from_sensor(kSensorRegPressMsb, p_data_arr) != 3) {
-        return data;
-    }
-    pressure_adc_raw = static_cast<int32_t>(
-        (static_cast<uint32_t>(p_data_arr[0]) << 16) |
-        (static_cast<uint32_t>(p_data_arr[1]) << 8)  |
-        (static_cast<uint32_t>(p_data_arr[2]))
-    );
-
-    if (pressure_adc_raw & 0x800000) {
-        constexpr int32_t two_to_24 = 16777216L;
-        data.pressure_pa = static_cast<float>(pressure_adc_raw - two_to_24) / kKValue;
-    } else {
-        data.pressure_pa = static_cast<float>(pressure_adc_raw) / kKValue;
-    }
-
-    data.valid = true;
-    return data;
+    return value_set;
 }
 
 } // anonymous namespace
@@ -190,41 +254,34 @@ void PneumaticService::registerPulseValueSetQueue(PulseValueSetQueue_t& queue) n
 
 void PneumaticService::taskLoop() noexcept {
     while (true) {
-        PulseValueSet value_set{};
-        for (uint8_t i = 0; i < kNumSensors; ++i) {
-            if (!select_mux_channel(i)) {
-                vTaskDelay(pdMS_TO_TICKS(500)); // Wait a bit before trying next or looping
-                continue;
+        static std::expected<QueueHandle_t, std::nullptr_t> selected_handle{};
+        if ((selected_handle = this->queue_set.selectFromSet(pdMS_TO_TICKS(portMAX_DELAY)))) {
+            if (selected_handle == this->action_queue.getFreeRTOSQueueHandle()) {
+                static Action action{};
+                this->action_queue.receive(action, pdMS_TO_TICKS(0));
+                if (action.action_type == ActionType::eStartSampling) {
+                    processSampling();
+                }
+            } else if (selected_handle == this->pressure_base_value_queue.getFreeRTOSQueueHandle()) {
+                updatePressureBaseValue();
             }
-            
-            // After selecting channel, there might be a very brief moment for lines to settle
-            // or for the selected device to be fully "online" on the bus.
-            // Usually not strictly necessary if I2C operations have proper start/stop.
-            // sleep_us(200); 
-
-            SensorData sensor_reading = read_pressure_sensor();
-            switch (i) {
-            case 0:
-                value_set.cun = sensor_reading.pressure_pa;
-                break;
-            case 1:
-                value_set.guan = sensor_reading.pressure_pa;
-                break;
-            case 2:
-                value_set.chi = sensor_reading.pressure_pa;
-                break;
-            default:
-                break;
-            }
-            vTaskDelay(pdMS_TO_TICKS(1));
         }
-        value_set.timestemp = get_absolute_time();
-        if (this->output_pulse_value_set_queue_ptr != nullptr) {
-            output_pulse_value_set_queue_ptr->send(value_set, pdMS_TO_TICKS(0));
-        }
-        vTaskDelay(pdMS_TO_TICKS(5));
     }
     /* Optional: Error handling */
+}
+
+void PneumaticService::processSampling() noexcept {
+    for (std::size_t i = 0; i < 7000; ++i) {
+        auto value_set = readPressureSensorPipelined();
+        if (this->output_pulse_value_set_queue_ptr != nullptr && value_set.has_value()) {
+            auto& set = value_set.value();
+            output_pulse_value_set_queue_ptr->send(value_set.value(), pdMS_TO_TICKS(0));
+        }        
+    }
+}
+
+void PneumaticService::updatePressureBaseValue() noexcept {
+
 }
 
 } // namespace bps::pneumatic
