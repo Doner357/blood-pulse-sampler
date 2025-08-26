@@ -34,11 +34,12 @@ constexpr std::uint8_t kSensorRegPressMsb  = 0x06;
 constexpr std::uint8_t kSensorRegPressCsb  = 0x07;
 constexpr std::uint8_t kSensorRegPressLsb  = 0x08;
 constexpr std::uint8_t kSensorRegTempMsb   = 0x09;
-constexpr std::uint8_t kSensorRegTempLsb = 0x0A;
+constexpr std::uint8_t kSensorRegTempLsb   = 0x0A;
 
 // !!! IMPORTANT: Set kKValue based on your sensor's specific pressure range !!!
 // Example for a 0-100kPa sensor, K is 64.
 constexpr float kKValue = 64.0f;
+constexpr std::float32_t kMaxTolerablePressurePa = 90000.0_pa;
 constexpr int kNumSensors = 3; // We are reading three sensors
 
 // --- Mapping Sensors ID to three measured position ---

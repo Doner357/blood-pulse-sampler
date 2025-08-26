@@ -1,12 +1,13 @@
 #include "psensors.hpp"
 
+// FreeRTOS
+#include <FreeRTOS.h>
+#include <task.h>
+// Pico SDK
 #include <pico/stdlib.h>
 #include <hardware/i2c.h>
 #include <pico/binary_info.h>
 #include <pico/time.h>
-
-#include <FreeRTOS.h>
-#include <task.h>
 
 #include <cstdint>
 #include <expected>
