@@ -28,19 +28,19 @@ class PneumaticService {
         bool createTask(UBaseType_t const& priority) noexcept;
 
         // Get the input queue (like setters reference)
-        CommandQueue_t& getCommandQueue() noexcept;
+        QueueReference<Command> getCommandQueueRef() const noexcept;
 
         // Register command and pressure base value queue
-        void registerPulseValueQueue(PulseValueQueue_t& queue) noexcept;
+        void registerPulseValueQueue(QueueReference<PulseValue> const& queue) noexcept;
 
     private:
         PneumaticService();
 
-        CommandQueue_t command_queue{};
-        PulseValueQueue_t* output_pulse_value_queue_ptr{nullptr};
+        StaticQueue<Command, 3> command_queue{};
+        QueueReference<PulseValue> output_pulse_value_queue_ref{};
 
         StaticQueueSet<
-            CommandQueue_t
+            decltype(command_queue)
         > queue_set = makeQueueSet(
             this->command_queue
         );

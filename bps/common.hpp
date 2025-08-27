@@ -149,10 +149,6 @@ struct PulseValue {
     std::float32_t chi  = 0.0_pa;
 };
 
-using CommandQueue_t            = StaticQueue<Command, 3>;
-using MachineStatusQueue_t     = StaticQueue<MachineStatus, 3>;
-using PulseValueQueue_t     = StaticQueue<PulseValue, 1024>;
-
 } // namespace bps
 
 #endif // BPS_COMMON_HPP

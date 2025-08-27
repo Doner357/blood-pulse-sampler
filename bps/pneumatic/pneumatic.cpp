@@ -27,13 +27,13 @@ bool PneumaticService::createTask(UBaseType_t const& priority) noexcept {
 }
 
 // Get the input queue (like setters reference)
-CommandQueue_t& PneumaticService::getCommandQueue() noexcept {
+QueueReference<Command> PneumaticService::getCommandQueueRef() const noexcept {
     return this->command_queue;
 }
 
 // Register command and pressure base value queue
-void PneumaticService::registerPulseValueQueue(PulseValueQueue_t& queue) noexcept {
-    this->output_pulse_value_queue_ptr = &queue;
+void PneumaticService::registerPulseValueQueue(QueueReference<PulseValue> const& queue) noexcept {
+    this->output_pulse_value_queue_ref = queue;
 }
 
 void PneumaticService::taskLoop() noexcept {
@@ -74,8 +74,8 @@ void PneumaticService::processCurrentStatus() noexcept {
         break;
     case CommandType::eStartSampling:
         value = psensors::readPressureSensorPipelinedBlocking();
-        if (this->output_pulse_value_queue_ptr != nullptr && value.has_value()) {
-            output_pulse_value_queue_ptr->send(value.value(), pdMS_TO_TICKS(0));
+        if (this->output_pulse_value_queue_ref.isValid() && value.has_value()) {
+            output_pulse_value_queue_ref.send(value.value(), pdMS_TO_TICKS(0));
         }
         if ((--this->remain_samples) == 0) {
             this->current_command.command_type = CommandType::eStopSampling;

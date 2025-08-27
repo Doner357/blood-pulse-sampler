@@ -121,6 +121,76 @@ class StaticQueue {
         QueueHandle_t queue_handle{nullptr};
 };
 
+template <typename T>
+class QueueReference {
+    public:
+        QueueReference() = default;
+
+        template<QueueType Q>
+        QueueReference(Q const& queue) {
+            this->queue_handle = queue.getFreeRTOSQueueHandle();
+        }
+
+        // --- API Methods ---
+
+        // Send by copying a const reference
+        bool send(T const& object, TickType_t wait_tick) noexcept {
+            if (
+                this->queue_handle == nullptr || 
+                xQueueSend(
+                    this->queue_handle, 
+                    reinterpret_cast<void const*>(&object), 
+                    wait_tick
+                ) != pdPASS
+            ) return false;
+            return true;
+        }
+
+        bool sendFromIsr(T const& object, BaseType_t* higher_priority_task_to_woken) noexcept {
+            if (
+                this->queue_handle == nullptr ||
+                xQueueSendFromISR(
+                    this->queue_handle,
+                    reinterpret_cast<void const*>(&object),
+                    higher_priority_task_to_woken
+                ) != pdPASS
+            ) return false;
+            return true;
+        }
+
+        // Receive an object
+        bool receive(T& receive_buffer, TickType_t wait_tick) noexcept {
+            if (
+                this->queue_handle == nullptr || 
+                xQueueReceive(
+                    this->queue_handle,
+                    reinterpret_cast<void*>(&receive_buffer),
+                    wait_tick
+                ) != pdPASS
+            ) return false;
+            return true;
+        }
+
+        // Get the raw FreeRTOS queue handle
+        QueueHandle_t getFreeRTOSQueueHandle() const noexcept {
+            return this->queue_handle;
+        }
+
+        // Helper to check if the queue was created successfully
+        bool isValid() const noexcept {
+            return this->queue_handle != nullptr;
+        }
+
+        UBaseType_t size() const noexcept {
+            return uxQueueMessagesWaiting(this->queue_handle);
+        }
+
+    private:
+        QueueHandle_t queue_handle{ nullptr };
+};
+template <QueueType Q>
+QueueReference(Q const&) -> QueueReference<typename Q::ContentType>;
+
 template<StaticQueueType... Qs>
 class StaticQueueSet {
         // The combined length of the all queues and that will be

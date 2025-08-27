@@ -39,19 +39,19 @@ bool BleService::createTask(UBaseType_t const& priority) noexcept {
     ) == pdPASS;
 }
 
-MachineStatusQueue_t& BleService::getMachineStatusQueue() noexcept {
+QueueReference<MachineStatus> BleService::getMachineStatusQueueRef() const noexcept {
     return this->machine_status_queue;
 }
 
-PulseValueQueue_t& BleService::getPulseValueQueue() noexcept {
+QueueReference<PulseValue> BleService::getPulseValueQueueRef() const noexcept {
     return this->pulse_value_queue;
 }
 
-void BleService::registerCommandQueue(CommandQueue_t& queue) noexcept {
+void BleService::registerCommandQueue(QueueReference<Command> const& queue) noexcept {
     if (!queue.isValid()) return;
-    this->output_command_queue_ptr = &queue;
+    this->output_command_queue_ref = queue;
     static auto command_callback = [](void* context, std::expected<Command, Error<std::byte>> command) {
-        auto send_queue = reinterpret_cast<CommandQueue_t*>(context);
+        auto send_queue = reinterpret_cast<QueueReference<Command>*>(context);
         if (command) {
             // This lambda will be called by the GattServer, so there shouldn't be any delay.
             send_queue->sendFromIsr(command.value(), nullptr);
@@ -61,7 +61,7 @@ void BleService::registerCommandQueue(CommandQueue_t& queue) noexcept {
     };
     gatt::GattServer::getInstance().registerCommandCallback(
         command_callback,
-        this->output_command_queue_ptr
+        &this->output_command_queue_ref
     );
 }
 
