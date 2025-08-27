@@ -43,39 +43,25 @@ MachineStatusQueue_t& BleService::getMachineStatusQueue() noexcept {
     return this->machine_status_queue;
 }
 
-PulseValueSetQueue_t& BleService::getPulseValueSetQueue() noexcept {
-    return this->pulse_value_set_queue;
+PulseValueQueue_t& BleService::getPulseValueQueue() noexcept {
+    return this->pulse_value_queue;
 }
 
-void BleService::registerActionQueue(ActionQueue_t& queue) noexcept {
+void BleService::registerCommandQueue(CommandQueue_t& queue) noexcept {
     if (!queue.isValid()) return;
-    this->output_action_queue_ptr = &queue;
-    static auto action_callback = [](void* context, std::expected<Action, Error<std::byte>> action) {
-        auto send_queue = reinterpret_cast<ActionQueue_t*>(context);
-        if (action) {
+    this->output_command_queue_ptr = &queue;
+    static auto command_callback = [](void* context, std::expected<Command, Error<std::byte>> command) {
+        auto send_queue = reinterpret_cast<CommandQueue_t*>(context);
+        if (command) {
             // This lambda will be called by the GattServer, so there shouldn't be any delay.
-            send_queue->sendFromIsr(action.value(), nullptr);
+            send_queue->sendFromIsr(command.value(), nullptr);
         } else {
             /* Error Handling */
         }
     };
-    gatt::GattServer::getInstance().registerActionCallback(
-        action_callback,
-        this->output_action_queue_ptr
-    );
-}
-
-void BleService::registerPressureBaseValueQueue(PressureBaseValueQueue_t& queue) noexcept {
-    if (!queue.isValid()) return;
-    this->output_pressure_base_value_queue_ptr = &queue;
-    static auto pressure_base_value_callback = [](void* context, PressureBaseValue const& base_value) {
-        auto send_queue = reinterpret_cast<PressureBaseValueQueue_t*>(context);
-        // This lambda will be called by the GattServer, so there shouldn't be any delay.
-        send_queue->sendFromIsr(base_value, nullptr);
-    };
-    gatt::GattServer::getInstance().registerPressureBaseValueCallback(
-        pressure_base_value_callback,
-        this->output_pressure_base_value_queue_ptr
+    gatt::GattServer::getInstance().registerCommandCallback(
+        command_callback,
+        this->output_command_queue_ptr
     );
 }
 
@@ -91,10 +77,10 @@ void BleService::taskLoop() noexcept {
                     /* Error Handling */
                 }
                 
-            } else if (selected_handle == this->pulse_value_set_queue.getFreeRTOSQueueHandle()) {
-                static PulseValueSet value_set{};
-                if (this->pulse_value_set_queue.receive(value_set, pdMS_TO_TICKS(5))) {
-                    gatt::GattServer::getInstance().sendPulseValueSet(value_set);
+            } else if (selected_handle == this->pulse_value_queue.getFreeRTOSQueueHandle()) {
+                static PulseValue value{};
+                if (this->pulse_value_queue.receive(value, pdMS_TO_TICKS(5))) {
+                    gatt::GattServer::getInstance().sendPulseValue(value);
                 } else {
                     /* Error Handling */
                 }

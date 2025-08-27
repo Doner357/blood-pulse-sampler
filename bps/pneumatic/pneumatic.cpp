@@ -27,17 +27,13 @@ bool PneumaticService::createTask(UBaseType_t const& priority) noexcept {
 }
 
 // Get the input queue (like setters reference)
-ActionQueue_t& PneumaticService::getActionQueue() noexcept {
-    return this->action_queue;
+CommandQueue_t& PneumaticService::getCommandQueue() noexcept {
+    return this->command_queue;
 }
 
-PressureBaseValueQueue_t& PneumaticService::getPressureBaseValueQueue() noexcept {
-    return this->pressure_base_value_queue;
-}
-
-// Register action and pressure base value queue
-void PneumaticService::registerPulseValueSetQueue(PulseValueSetQueue_t& queue) noexcept {
-    this->output_pulse_value_set_queue_ptr = &queue;
+// Register command and pressure base value queue
+void PneumaticService::registerPulseValueQueue(PulseValueQueue_t& queue) noexcept {
+    this->output_pulse_value_queue_ptr = &queue;
 }
 
 void PneumaticService::taskLoop() noexcept {
@@ -51,43 +47,43 @@ void PneumaticService::taskLoop() noexcept {
 void PneumaticService::updateCurrentStatus() noexcept {
     static std::expected<QueueHandle_t, std::nullptr_t> selected_handle{};
     if ((selected_handle = this->queue_set.selectFromSet(pdMS_TO_TICKS(0)))) {
-        if (selected_handle == this->action_queue.getFreeRTOSQueueHandle()) {
-            static Action new_action{};
-            this->action_queue.receive(new_action, pdMS_TO_TICKS(0));
+        if (selected_handle == this->command_queue.getFreeRTOSQueueHandle()) {
+            static Command new_command{};
+            this->command_queue.receive(new_command, pdMS_TO_TICKS(0));
             if (
-                new_action.action_type == ActionType::eStartSampling &&
-                this->current_action.action_type == ActionType::eStopSampling
+                new_command.command_type == CommandType::eStartSampling &&
+                this->current_command.command_type == CommandType::eStopSampling
             ) {
                 this->remain_samples = kNeedSamples;
             } else if (
-                new_action.action_type == ActionType::eStopSampling &&
-                this->current_action.action_type == ActionType::eStartSampling
+                new_command.command_type == CommandType::eStopSampling &&
+                this->current_command.command_type == CommandType::eStartSampling
             ) {
                 this->remain_samples = 0;
             }
-            this->current_action = new_action;
-        } else if (selected_handle == this->pressure_base_value_queue.getFreeRTOSQueueHandle()) {
-            this->pressure_base_value_queue.receive(this->current_pressure_base_value, pdMS_TO_TICKS(0));
+            this->current_command = new_command;
         }
     }
 }
 
 void PneumaticService::processCurrentStatus() noexcept {
-    static std::expected<bps::PulseValueSet, bps::Error<int>> value_set{};
-    switch (this->current_action.action_type) {
-    case ActionType::eStopSampling:
+    static std::expected<bps::PulseValue, bps::Error<int>> value{};
+    switch (this->current_command.command_type) {
+    case CommandType::eStopSampling:
         /* TODO: Stopping air pumps and open the valves */
         break;
-    case ActionType::eStartSampling:
-        value_set = psensors::readPressureSensorPipelinedBlocking();
-        if (this->output_pulse_value_set_queue_ptr != nullptr && value_set.has_value()) {
-            output_pulse_value_set_queue_ptr->send(value_set.value(), pdMS_TO_TICKS(0));
+    case CommandType::eStartSampling:
+        value = psensors::readPressureSensorPipelinedBlocking();
+        if (this->output_pulse_value_queue_ptr != nullptr && value.has_value()) {
+            output_pulse_value_queue_ptr->send(value.value(), pdMS_TO_TICKS(0));
         }
         if ((--this->remain_samples) == 0) {
-            this->current_action.action_type = ActionType::eStopSampling;
+            this->current_command.command_type = CommandType::eStopSampling;
         }
         break;
-    case ActionType::eNull:
+    case CommandType::eSetPressure:
+        break;
+    case CommandType::eNull:
         vTaskDelay(pdMS_TO_TICKS(10));
         break;
     default:

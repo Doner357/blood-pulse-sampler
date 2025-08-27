@@ -57,7 +57,7 @@ constexpr uint32_t kI2cBaudrateHz = (400 * 1000); // 400KHz
 void initializePressureSensors() noexcept;
 
 // Read the current pressure from three sensors, note that this will block the caller task for "kSampleRateMs" ms
-std::expected<PulseValueSet, Error<int>> readPressureSensorPipelinedBlocking() noexcept;
+std::expected<PulseValue, Error<int>> readPressureSensorPipelinedBlocking() noexcept;
 
 // Function to select a channel on the TCA9548A
 inline bool selectMuxChannel(std::uint8_t channel) noexcept {

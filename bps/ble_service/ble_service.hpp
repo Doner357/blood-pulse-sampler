@@ -34,26 +34,24 @@ class BleService {
         
         // Get the input queue (like setters reference)
         MachineStatusQueue_t& getMachineStatusQueue() noexcept;
-        PulseValueSetQueue_t& getPulseValueSetQueue() noexcept;
+        PulseValueQueue_t& getPulseValueQueue() noexcept;
 
-        // Register action and pressure base value queue
-        void registerActionQueue(ActionQueue_t& queue) noexcept;
-        void registerPressureBaseValueQueue(PressureBaseValueQueue_t& queue) noexcept;
+        // Register command and pressure base value queue
+        void registerCommandQueue(CommandQueue_t& queue) noexcept;
 
     private:
         BleService();
 
-        ActionQueue_t* output_action_queue_ptr{nullptr};
-        PressureBaseValueQueue_t* output_pressure_base_value_queue_ptr{nullptr};
+        CommandQueue_t* output_command_queue_ptr{nullptr};
         MachineStatusQueue_t machine_status_queue{};
-        PulseValueSetQueue_t pulse_value_set_queue{};
+        PulseValueQueue_t pulse_value_queue{};
 
         StaticQueueSet<
             MachineStatusQueue_t,
-            PulseValueSetQueue_t
+            PulseValueQueue_t
         > queue_set = makeQueueSet(
             this->machine_status_queue,
-            this->pulse_value_set_queue
+            this->pulse_value_queue
         );
 
         // FreeRTOS task

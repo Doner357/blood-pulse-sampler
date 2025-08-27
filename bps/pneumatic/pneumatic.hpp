@@ -28,25 +28,21 @@ class PneumaticService {
         bool createTask(UBaseType_t const& priority) noexcept;
 
         // Get the input queue (like setters reference)
-        ActionQueue_t& getActionQueue() noexcept;
-        PressureBaseValueQueue_t& getPressureBaseValueQueue() noexcept;
+        CommandQueue_t& getCommandQueue() noexcept;
 
-        // Register action and pressure base value queue
-        void registerPulseValueSetQueue(PulseValueSetQueue_t& queue) noexcept;
+        // Register command and pressure base value queue
+        void registerPulseValueQueue(PulseValueQueue_t& queue) noexcept;
 
     private:
         PneumaticService();
 
-        ActionQueue_t action_queue{};
-        PressureBaseValueQueue_t pressure_base_value_queue{};
-        PulseValueSetQueue_t* output_pulse_value_set_queue_ptr{nullptr};
+        CommandQueue_t command_queue{};
+        PulseValueQueue_t* output_pulse_value_queue_ptr{nullptr};
 
         StaticQueueSet<
-            ActionQueue_t,
-            PressureBaseValueQueue_t
+            CommandQueue_t
         > queue_set = makeQueueSet(
-            this->action_queue,
-            this->pressure_base_value_queue
+            this->command_queue
         );
 
         // FreeRTOS task
@@ -58,14 +54,8 @@ class PneumaticService {
 
         // Status storage
         static constexpr std::size_t kNeedSamples = 2000;
-        Action current_action{
-            ActionType::eStopSampling, PressureType::eNull, PressureType::eNull, PressureType::eNull
-        };
+        Command current_command{};
         std::size_t remain_samples = 0;
-
-        PressureBaseValue current_pressure_base_value{
-            0.0_pa, 0.0_pa, 0.0_pa
-        };
 };
 
 } // namespace bps::pneumatic
