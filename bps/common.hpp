@@ -34,21 +34,24 @@ struct Error {
 template<typename T>
 concept ByteTypes = (sizeof(T) == 1u);
 
-// Type of Action
-enum class ActionType : std::uint8_t {
+// Type of Command
+enum class CommandType : std::uint8_t {
     eNull          = 0X00,
     eStopSampling  = 0x01,
-    eStartSampling = 0x02
+    eStartSampling = 0x02,
+    eSetPressure   = 0x03
 };
-// Helper function, convert each byte type value to ActionType enum class
+// Helper function, convert each byte type value to CommandType enum class
 // Return std::nullopt optional if there is no matched enum
-inline std::optional<ActionType> toActionType(ByteTypes auto value) noexcept {
-    auto const enum_value = static_cast<std::underlying_type<ActionType>::type>(value);
+inline std::optional<CommandType> toCommandType(ByteTypes auto value) noexcept {
+    auto const enum_value = static_cast<std::underlying_type<CommandType>::type>(value);
     switch (enum_value) {
-    case std::to_underlying(ActionType::eStartSampling):
-        return ActionType::eStartSampling;
-    case std::to_underlying(ActionType::eStopSampling):
-        return ActionType::eStopSampling;
+    case std::to_underlying(CommandType::eStartSampling):
+        return CommandType::eStartSampling;
+    case std::to_underlying(CommandType::eStopSampling):
+        return CommandType::eStopSampling;
+    case std::to_underlying(CommandType::eSetPressure):
+        return CommandType::eSetPressure;
     default:
         return std::nullopt;
     }
@@ -56,9 +59,10 @@ inline std::optional<ActionType> toActionType(ByteTypes auto value) noexcept {
 
 // Represent Sampler machine status
 enum class MachineStatus : std::uint8_t {
-    eNull     = 0x00,
-    eIdle     = 0x01,
-    eSampling = 0x02
+    eNull            = 0x00,
+    eIdle            = 0x01,
+    eSampling        = 0x02,
+    eSettingPressure = 0x03
 };
 // Helper function, convert each byte type value to MachineStatus enum class
 // Return std::nullopt optional if there is no matched enum
@@ -69,6 +73,8 @@ inline std::optional<MachineStatus> toMachineStatus(ByteTypes auto value) noexce
         return MachineStatus::eIdle;
     case std::to_underlying(MachineStatus::eSampling):
         return MachineStatus::eSampling;
+    case std::to_underlying(MachineStatus::eSettingPressure):
+        return MachineStatus::eSettingPressure;
     default:
         return std::nullopt;
     }
@@ -81,6 +87,21 @@ enum class Position : std::uint8_t {
     eGuan,
     eChi
 };
+// Helper function, convert each byte type value to Position enum class
+// Return std::nullopt optional if there is no matched enum
+inline std::optional<Position> toPosition(ByteTypes auto value) noexcept {
+    auto const enum_value = static_cast<std::underlying_type<Position>::type>(value);
+    switch (enum_value) {
+    case std::to_underlying(Position::eCun):
+        return Position::eCun;
+    case std::to_underlying(Position::eGuan):
+        return Position::eGuan;
+    case std::to_underlying(Position::eChi):
+        return Position::eChi;
+    default:
+        return std::nullopt;
+    }
+}
 
 // Three type of pressure
 enum class PressureType : std::uint8_t {
@@ -105,33 +126,28 @@ inline std::optional<PressureType> toPressureType(ByteTypes auto value) noexcept
     }
 }
 
-// Hold action the machine should do
-struct Action {
-    ActionType action_type = ActionType::eNull;
-    PressureType cun  = PressureType::eNull;
-    PressureType guan = PressureType::eNull;
-    PressureType chi  = PressureType::eNull;
-};
-
-// Hold base value of pressure type
-struct PressureBaseValue {
-    std::float32_t floating = 0.0_pa;
-    std::float32_t middle   = 0.0_pa;
-    std::float32_t deep     = 0.0_pa;
+// Hold Common the machine should do
+struct Command {
+    CommandType command_type = CommandType::eNull;
+    union Content {
+        // For eStartSampling command
+        std::uint64_t sample_time_ms;
+        // For eSetPressure command
+        struct PressureInfo {
+            std::float32_t cun;
+            std::float32_t guan;
+            std::float32_t chi;
+        } pressure_settings;
+    } content;
 };
 
 // Pack one pulse sample information
-struct PulseValueSet {
+struct PulseValue {
     std::uint64_t  timestemp = 0;
     std::float32_t cun  = 0.0_pa;
     std::float32_t guan = 0.0_pa;
     std::float32_t chi  = 0.0_pa;
 };
-
-using ActionQueue_t            = StaticQueue<Action, 3>;
-using PressureBaseValueQueue_t = StaticQueue<PressureBaseValue, 3>;
-using MachineStatusQueue_t     = StaticQueue<MachineStatus, 3>;
-using PulseValueSetQueue_t     = StaticQueue<PulseValueSet, 1024>;
 
 } // namespace bps
 

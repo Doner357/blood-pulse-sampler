@@ -33,28 +33,26 @@ class BleService {
         bool createTask(UBaseType_t const& priority) noexcept;
         
         // Get the input queue (like setters reference)
-        MachineStatusQueue_t& getMachineStatusQueue() noexcept;
-        PulseValueSetQueue_t& getPulseValueSetQueue() noexcept;
+        QueueReference<MachineStatus> getMachineStatusQueueRef() const noexcept;
+        QueueReference<PulseValue> getPulseValueQueueRef() const noexcept;
 
-        // Register action and pressure base value queue
-        void registerActionQueue(ActionQueue_t& queue) noexcept;
-        void registerPressureBaseValueQueue(PressureBaseValueQueue_t& queue) noexcept;
+        // Register command and pressure base value queue
+        void registerCommandQueue(QueueReference<Command> const& queue) noexcept;
 
     private:
         BleService();
 
-        ActionQueue_t* output_action_queue_ptr{nullptr};
-        PressureBaseValueQueue_t* output_pressure_base_value_queue_ptr{nullptr};
-        MachineStatusQueue_t machine_status_queue{};
-        PulseValueSetQueue_t pulse_value_set_queue{};
+        QueueReference<Command> output_command_queue_ref{};
+        StaticQueue<MachineStatus, 3> machine_status_queue{};
+        StaticQueue<PulseValue, 3> pulse_value_queue{};
 
         StaticQueueSet<
-            MachineStatusQueue_t,
-            PulseValueSetQueue_t
-        > queue_set = makeQueueSet(
+            decltype(machine_status_queue),
+            decltype(pulse_value_queue)
+        > queue_set{
             this->machine_status_queue,
-            this->pulse_value_set_queue
-        );
+            this->pulse_value_queue
+        };
 
         // FreeRTOS task
         TaskHandle_t task_handle{nullptr};

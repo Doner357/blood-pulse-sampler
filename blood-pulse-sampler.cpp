@@ -11,8 +11,8 @@ int main() {
     auto& pneumatic_service = bps::pneumatic::PneumaticService::getInstance();
     pneumatic_service.initialize();
 
-    pneumatic_service.registerPulseValueSetQueue(ble_service.getPulseValueSetQueue());
-    ble_service.registerActionQueue(pneumatic_service.getActionQueue());
+    pneumatic_service.registerPulseValueQueue(ble_service.getPulseValueQueueRef());
+    ble_service.registerCommandQueue(pneumatic_service.getCommandQueueRef());
 
     ble_service.createTask(2);
     pneumatic_service.createTask(1);

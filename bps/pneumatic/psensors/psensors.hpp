@@ -34,11 +34,12 @@ constexpr std::uint8_t kSensorRegPressMsb  = 0x06;
 constexpr std::uint8_t kSensorRegPressCsb  = 0x07;
 constexpr std::uint8_t kSensorRegPressLsb  = 0x08;
 constexpr std::uint8_t kSensorRegTempMsb   = 0x09;
-constexpr std::uint8_t kSensorRegTempLsb = 0x0A;
+constexpr std::uint8_t kSensorRegTempLsb   = 0x0A;
 
 // !!! IMPORTANT: Set kKValue based on your sensor's specific pressure range !!!
 // Example for a 0-100kPa sensor, K is 64.
 constexpr float kKValue = 64.0f;
+constexpr std::float32_t kMaxTolerablePressurePa = 90000.0_pa;
 constexpr int kNumSensors = 3; // We are reading three sensors
 
 // --- Mapping Sensors ID to three measured position ---
@@ -56,7 +57,7 @@ constexpr uint32_t kI2cBaudrateHz = (400 * 1000); // 400KHz
 void initializePressureSensors() noexcept;
 
 // Read the current pressure from three sensors, note that this will block the caller task for "kSampleRateMs" ms
-std::expected<PulseValueSet, Error<int>> readPressureSensorPipelinedBlocking() noexcept;
+std::expected<PulseValue, Error<int>> readPressureSensorPipelinedBlocking() noexcept;
 
 // Function to select a channel on the TCA9548A
 inline bool selectMuxChannel(std::uint8_t channel) noexcept {

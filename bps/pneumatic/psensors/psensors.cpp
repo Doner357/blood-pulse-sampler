@@ -1,12 +1,13 @@
 #include "psensors.hpp"
 
+// FreeRTOS
+#include <FreeRTOS.h>
+#include <task.h>
+// Pico SDK
 #include <pico/stdlib.h>
 #include <hardware/i2c.h>
 #include <pico/binary_info.h>
 #include <pico/time.h>
-
-#include <FreeRTOS.h>
-#include <task.h>
 
 #include <cstdint>
 #include <expected>
@@ -29,7 +30,7 @@ void initializePressureSensors() noexcept {
     i2c_write_blocking(kI2cPortInstance, kMuxI2cAddr, &disable_all_cmd, 1, false);
 }
 
-std::expected<PulseValueSet, Error<int>> readPressureSensorPipelinedBlocking() noexcept {
+std::expected<PulseValue, Error<int>> readPressureSensorPipelinedBlocking() noexcept {
     // Request (Write) the pressure data
     for (std::size_t i = 0; i < kNumSensors; ++i) {
         if (!selectMuxChannel(i)) {
@@ -43,7 +44,7 @@ std::expected<PulseValueSet, Error<int>> readPressureSensorPipelinedBlocking() n
 
     vTaskDelay(pdMS_TO_TICKS(kSampleRateMs));
 
-    PulseValueSet value_set{};
+    PulseValue value{};
     // Fetch (Read) the pressure data
     for (std::size_t i = 0; i < kNumSensors; ++i) {
         if (!selectMuxChannel(i)) {
@@ -73,21 +74,21 @@ std::expected<PulseValueSet, Error<int>> readPressureSensorPipelinedBlocking() n
 
         switch (i) {
         case kCunSensorId:
-            value_set.cun = pressure;
+            value.cun = pressure;
             break;
         case kGuanSensorId:
-            value_set.guan = pressure;
+            value.guan = pressure;
             break;
         case kChiSensorId:
-            value_set.chi = pressure;
+            value.chi = pressure;
         default:
             break;
         }
     }
 
-    value_set.timestemp = get_absolute_time();
+    value.timestemp = get_absolute_time();
 
-    return value_set;
+    return value;
 }
 
 } // bps::pneumatic::psensors
