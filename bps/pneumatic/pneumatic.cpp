@@ -52,7 +52,7 @@ void PneumaticService::updateCurrentStatus() noexcept {
             this->command_queue.receive(new_command, pdMS_TO_TICKS(0));
             if (
                 new_command.command_type == CommandType::eStartSampling &&
-                this->current_command.command_type == CommandType::eStopSampling
+                this->current_command.command_type != CommandType::eStartSampling
             ) {
                 this->remain_samples = kNeedSamples;
             } else if (
