@@ -7,12 +7,13 @@
 #include <hardware/i2c.h>
 
 #include <cstdint>
+#include <stdfloat>
 #include <array>
 #include <expected>
 
 #include "common.hpp"
 
-namespace bps::pneumatic::psensors {
+namespace bps::pneumatic::pcontroller {
 
 // --- Sample Rate (can't less than 120Hz == 8 ms/sample) ---
 // Note: This is the delay between triggering a pressure conversion and
@@ -56,6 +57,9 @@ constexpr uint32_t kI2cBaudrateHz = (400 * 1000); // 400KHz
 // Initialize all the required driver and hardware settings
 void initializePressureSensors() noexcept;
 
+// Read the current pressure from three sensors, note that this will sleep the caller task for "kSampleRateMs" ms
+// This can be called without using FreeRTOS
+std::expected<PulseValue, Error<int>> readPressureSensorPipelinedSleepping() noexcept;
 // Read the current pressure from three sensors, note that this will block the caller task for "kSampleRateMs" ms
 std::expected<PulseValue, Error<int>> readPressureSensorPipelinedBlocking() noexcept;
 
@@ -157,6 +161,6 @@ inline bool checkSensorConversionStatusAttemptsBlocking(std::size_t const& attem
     return false;
 }
 
-} // bps::pneumatic::psensors
+} // bps::pneumatic::pcontroller
 
 #endif

@@ -1,13 +1,14 @@
 #include "pneumatic.hpp"
 
-#include "psensors/psensors.hpp"
+#include "pcontroller/psensor.hpp"
+#include "pcontroller/pcontroller.hpp"
 
 namespace bps::pneumatic {
 
 PneumaticService::PneumaticService() {}
 
 void PneumaticService::initialize() noexcept {
-    psensors::initializePressureSensors();
+    pcontroller::initializePressureSensors();
 }
 
 bool PneumaticService::createTask(UBaseType_t const& priority) noexcept {
@@ -73,7 +74,7 @@ void PneumaticService::processCurrentStatus() noexcept {
         /* TODO: Stopping air pumps and open the valves */
         break;
     case CommandType::eStartSampling:
-        value = psensors::readPressureSensorPipelinedBlocking();
+        value = pcontroller::readPressureSensorPipelinedBlocking();
         if (this->output_pulse_value_queue_ref.isValid() && value.has_value()) {
             output_pulse_value_queue_ref.send(value.value(), pdMS_TO_TICKS(0));
         }
