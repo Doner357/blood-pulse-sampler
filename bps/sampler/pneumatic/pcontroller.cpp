@@ -9,7 +9,7 @@
 
 #include "psensor.hpp"
 
-namespace bps::pneumatic::pcontroller {
+namespace bps::sampler::pneumatic {
 
 PressureController::PressureController(uint const& chan_a_gpio): 
     chan_a_gpio_pin(chan_a_gpio),
@@ -60,4 +60,4 @@ void PressureController::setPumpPwmPercentage(float const& percentage) noexcept 
     pwm_set_chan_level(this->slice_num, PressureController::kPwmChanPump, level);
 }
 
-} // bps::pneumatic::pcontroller
+} // bps::sampler::pneumatic

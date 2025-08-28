@@ -13,7 +13,7 @@
 
 #include "common.hpp"
 
-namespace bps::pneumatic::pcontroller {
+namespace bps::sampler::pneumatic {
 
 // --- Sample Rate (can't less than 120Hz == 8 ms/sample) ---
 // Note: This is the delay between triggering a pressure conversion and
@@ -59,7 +59,7 @@ void initializePressureSensors() noexcept;
 
 // Read the current pressure from three sensors, note that this will sleep the caller task for "kSampleRateMs" ms
 // This can be called without using FreeRTOS
-std::expected<PulseValue, Error<int>> readPressureSensorPipelinedSleepping() noexcept;
+std::expected<PulseValue, Error<int>> readPressureSensorPipelinedSleeping() noexcept;
 // Read the current pressure from three sensors, note that this will block the caller task for "kSampleRateMs" ms
 std::expected<PulseValue, Error<int>> readPressureSensorPipelinedBlocking() noexcept;
 
@@ -161,6 +161,6 @@ inline bool checkSensorConversionStatusAttemptsBlocking(std::size_t const& attem
     return false;
 }
 
-} // bps::pneumatic::pcontroller
+} // bps::sampler::pneumatic
 
 #endif
