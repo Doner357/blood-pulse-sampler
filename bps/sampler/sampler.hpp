@@ -1,5 +1,5 @@
-#ifndef BPS_PNEUMATIC_HPP
-#define BPS_PNEUMATIC_HPP
+#ifndef BPS_SAMPLER_HPP
+#define BPS_SAMPLER_HPP
 
 // FreeRTOS
 #include <FreeRTOS.h>
@@ -12,17 +12,17 @@
 #include "common.hpp"
 #include "queue.hpp"
 
-namespace bps::pneumatic {
+namespace bps::sampler {
 
-class PneumaticService {
+class SamplerService {
     public:
-        static PneumaticService& getInstance() noexcept {
-            static PneumaticService service;
+        static SamplerService& getInstance() noexcept {
+            static SamplerService service;
             return service;
         }
 
-        PneumaticService(PneumaticService const&) = delete;
-        PneumaticService& operator=(PneumaticService const&) = delete;
+        SamplerService(SamplerService const&) = delete;
+        SamplerService& operator=(SamplerService const&) = delete;
         
         void initialize() noexcept;
         bool createTask(UBaseType_t const& priority) noexcept;
@@ -34,7 +34,7 @@ class PneumaticService {
         void registerPulseValueQueue(QueueReference<PulseValue> const& queue) noexcept;
 
     private:
-        PneumaticService();
+        SamplerService();
 
         StaticQueue<Command, 3> command_queue{};
         QueueReference<PulseValue> output_pulse_value_queue_ref{};
@@ -58,6 +58,6 @@ class PneumaticService {
         std::size_t remain_samples = 0;
 };
 
-} // namespace bps::pneumatic
+} // namespace bps::sampler
 
-#endif // BPS_PNEUMATIC_HPP
+#endif // BPS_SAMPLER_HPP

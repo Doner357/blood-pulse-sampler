@@ -13,7 +13,7 @@
 #include <expected>
 #include <stdfloat>
 
-namespace bps::pneumatic::pcontroller {
+namespace bps::sampler::pneumatic {
 
 void initializePressureSensors() noexcept {
     static bool has_initialized = false;
@@ -36,7 +36,7 @@ void initializePressureSensors() noexcept {
 }
 
 
-std::expected<PulseValue, Error<int>> readPressureSensorPipelinedSleepping() noexcept {
+std::expected<PulseValue, Error<int>> readPressureSensorPipelinedSleeping() noexcept {
     // Request (Write) the pressure data
     for (std::size_t i = 0; i < kNumSensors; ++i) {
         if (!selectMuxChannel(i)) {
@@ -158,4 +158,4 @@ std::expected<PulseValue, Error<int>> readPressureSensorPipelinedBlocking() noex
     return value;
 }
 
-} // bps::pneumatic::pcontroller
+} // bps::sampler::pneumatic

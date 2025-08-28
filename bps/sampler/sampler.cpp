@@ -1,20 +1,20 @@
-#include "pneumatic.hpp"
+#include "sampler.hpp"
 
-#include "pcontroller/psensor.hpp"
-#include "pcontroller/pcontroller.hpp"
+#include "pneumatic/psensor.hpp"
+#include "pneumatic/pcontroller.hpp"
 
-namespace bps::pneumatic {
+namespace bps::sampler {
 
-PneumaticService::PneumaticService() {}
+SamplerService::SamplerService() {}
 
-void PneumaticService::initialize() noexcept {
-    pcontroller::initializePressureSensors();
+void SamplerService::initialize() noexcept {
+    pneumatic::initializePressureSensors();
 }
 
-bool PneumaticService::createTask(UBaseType_t const& priority) noexcept {
+bool SamplerService::createTask(UBaseType_t const& priority) noexcept {
     static auto freertos_task = 
         [](void* context) {
-            PneumaticService* service = static_cast<PneumaticService*>(context);
+            SamplerService* service = static_cast<SamplerService*>(context);
             service->taskLoop();
         };
     return xTaskCreate(
@@ -28,16 +28,16 @@ bool PneumaticService::createTask(UBaseType_t const& priority) noexcept {
 }
 
 // Get the input queue (like setters reference)
-QueueReference<Command> PneumaticService::getCommandQueueRef() const noexcept {
+QueueReference<Command> SamplerService::getCommandQueueRef() const noexcept {
     return this->command_queue;
 }
 
 // Register command and pressure base value queue
-void PneumaticService::registerPulseValueQueue(QueueReference<PulseValue> const& queue) noexcept {
+void SamplerService::registerPulseValueQueue(QueueReference<PulseValue> const& queue) noexcept {
     this->output_pulse_value_queue_ref = queue;
 }
 
-void PneumaticService::taskLoop() noexcept {
+void SamplerService::taskLoop() noexcept {
     while (true) {
         updateCurrentStatus();
         processCurrentStatus();
@@ -45,7 +45,7 @@ void PneumaticService::taskLoop() noexcept {
     /* Optional: Error handling */
 }
 
-void PneumaticService::updateCurrentStatus() noexcept {
+void SamplerService::updateCurrentStatus() noexcept {
     static std::expected<QueueHandle_t, std::nullptr_t> selected_handle{};
     if ((selected_handle = this->queue_set.selectFromSet(pdMS_TO_TICKS(0)))) {
         if (selected_handle == this->command_queue.getFreeRTOSQueueHandle()) {
@@ -67,14 +67,14 @@ void PneumaticService::updateCurrentStatus() noexcept {
     }
 }
 
-void PneumaticService::processCurrentStatus() noexcept {
+void SamplerService::processCurrentStatus() noexcept {
     static std::expected<bps::PulseValue, bps::Error<int>> value{};
     switch (this->current_command.command_type) {
     case CommandType::eStopSampling:
         /* TODO: Stopping air pumps and open the valves */
         break;
     case CommandType::eStartSampling:
-        value = pcontroller::readPressureSensorPipelinedBlocking();
+        value = pneumatic::readPressureSensorPipelinedBlocking();
         if (this->output_pulse_value_queue_ref.isValid() && value.has_value()) {
             output_pulse_value_queue_ref.send(value.value(), pdMS_TO_TICKS(0));
         }
@@ -93,4 +93,4 @@ void PneumaticService::processCurrentStatus() noexcept {
     }
 }
 
-} // namespace bps::pneumatic
+} // namespace bps::sampler

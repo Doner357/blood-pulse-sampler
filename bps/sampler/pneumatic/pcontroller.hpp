@@ -9,7 +9,7 @@
 
 #include "common.hpp"
 
-namespace bps::pneumatic::pcontroller {
+namespace bps::sampler::pneumatic {
 
 class PressureController {
     public:
@@ -64,6 +64,6 @@ class PressureController {
         void setPumpPwmPercentage(float const& percentage) noexcept;
 };
 
-} // bps::pneumatic::pcontroller
+} // bps::sampler::pneumatic
 
 #endif // BPS_PRESSURE_CONTROLLER_HPP
