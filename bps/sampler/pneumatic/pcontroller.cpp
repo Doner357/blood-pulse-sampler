@@ -13,14 +13,13 @@
 
 namespace bps::sampler::pneumatic {
 
-std::uint8_t PressureController::task_id = 0;
+std::uint8_t PressureController::task_counter = 0;
 
 PressureController::PressureController(uint const& chan_a_gpio) noexcept: 
     chan_a_gpio_pin(chan_a_gpio),
-    chan_b_gpio_pin(chan_a_gpio + 1)
-{
-    ++this->task_id;
-}
+    chan_b_gpio_pin(chan_a_gpio + 1),
+    task_id(task_counter++)
+{}
 
 void PressureController::initialize() noexcept {
     // Initialize gpio function to pwm utilization
@@ -114,7 +113,6 @@ void PressureController::executePid(std::float32_t const& current_pressure, std:
     std::float32_t output = (PidConstant::kp * error) + 
                             (PidConstant::ki * this->pid_integral) + 
                             (PidConstant::kd * derivative);
-    
     // TODO: Update PWM part
     
     this->pid_prev_pressure = filtered_value;

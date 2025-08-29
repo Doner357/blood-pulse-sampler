@@ -81,7 +81,8 @@ class PressureController {
         
         // FreeRTOS task
         static constexpr std::size_t kMaxLenOfTaskName = 25;
-        static std::uint8_t task_id;
+        static std::uint8_t task_counter;
+        std::uint8_t task_id;
         TaskHandle_t task_handle{nullptr};
         std::array<char, kMaxLenOfTaskName> task_name{"Pressure Controller "};
         void taskLoop() noexcept;

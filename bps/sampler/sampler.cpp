@@ -33,7 +33,7 @@ void SamplerService::initialize() noexcept {
 }
 
 bool SamplerService::createTask(UBaseType_t const& priority) noexcept {
-    this->pneumatic_handler.createTask(priority - 1);
+    this->pneumatic_handler.createTask(priority);
 
     static auto freertos_task = 
         [](void* context) {
@@ -92,12 +92,15 @@ void SamplerService::updateCurrentStatus() noexcept {
 
 void SamplerService::processCurrentStatus() noexcept {
     static std::expected<bps::PulseValue, bps::Error<int>> value{};
+    value = pneumatic::PressureSensors::getInstance().readPressureSensorPipelinedBlocking();
+    if (value) {
+        this->pneumatic_handler.trigger(value.value());
+    }
     switch (this->current_command.command_type) {
     case CommandType::eStopSampling:
         /* TODO: Stopping air pumps and open the valves */
         break;
     case CommandType::eStartSampling:
-        value = pneumatic::PressureSensors::getInstance().readPressureSensorPipelinedBlocking();
         if (this->output_pulse_value_queue_ref.isValid() && value.has_value()) {
             output_pulse_value_queue_ref.send(value.value(), pdMS_TO_TICKS(0));
         }

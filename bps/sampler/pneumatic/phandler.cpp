@@ -21,8 +21,8 @@ void PneumaticHandler::initialize() noexcept {
 
 void PneumaticHandler::createTask(UBaseType_t const& priority) noexcept {
     this->cun_controller.createTask(priority);
-    this->cun_controller.createTask(priority);
-    this->cun_controller.createTask(priority);
+    this->guan_controller.createTask(priority);
+    this->chi_controller.createTask(priority);
 }
 
 void PneumaticHandler::trigger(PulseValue const& pulse_value) noexcept {
