@@ -40,8 +40,8 @@ class PressureController {
         std::float32_t pressure_error;
         
         // PWM related
-        static constexpr uint kPwmChanGate = PWM_CHAN_A;
-        static constexpr uint kPwmChanPump = PWM_CHAN_B;
+        static constexpr uint kPwmChanValve = PWM_CHAN_A;
+        static constexpr uint kPwmChanPump  = PWM_CHAN_B;
 
         static constexpr float    kPwmClkDiv  = 150.0f;
         static constexpr uint16_t kPwmMaxWrap = 999;
@@ -49,8 +49,8 @@ class PressureController {
         uint chan_a_gpio_pin;
         uint chan_b_gpio_pin;
         uint slice_num;
-        std::uint16_t gate_pwm_level_percentage = 0;
-        std::uint16_t pump_pwm_level_percentage = 0;
+        std::uint16_t valve_pwm_level_percentage = 0;
+        std::uint16_t pump_pwm_level_percentage  = 0;
 
         // PID related
         static constexpr std::float32_t kPidDeadBandThreshold = 100.0_pa;
@@ -68,8 +68,8 @@ class PressureController {
         // EMA related
         static constexpr std::float32_t kEmaAlpha = 0.05f;
 
-        // Set the output level percentage for gate control, the range of percentage is [0.0f, 1.0f]
-        PressureController& setGatePwmPercentage(float const& percentage) noexcept;
+        // Set the output level percentage for valve control, the range of percentage is [0.0f, 1.0f]
+        PressureController& setValvePwmPercentage(float const& percentage) noexcept;
         // Set the output level percentage for pump control, the range of percentage is [0.0f, 1.0f]
         PressureController& setPumpPwmPercentage(float const& percentage) noexcept;
 };
