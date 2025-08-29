@@ -30,13 +30,16 @@ class PressureController {
          *          maps to a Channel B will result in an assertion failure during initialization.
          *          This constructor will also cause the taskDelay to the caller.
          */
-        PressureController(uint const& chan_a_gpio);
+        PressureController(uint const& chan_a_gpio, std::float32_t const& pressure_base_error = 0.0_pa) noexcept;
 
-        void executePid(std::float32_t const& current_pressure) noexcept;
-        void setNewTargetPressure(std::float32_t const& new_target) noexcept;
-        void setPressureError(std::float32_t const& error) noexcept;
+        void executePid(std::float32_t const& current_pressure, std::uint64_t const& current_time) noexcept;
+        PressureController& setNewTargetPressure(std::float32_t const& new_target) noexcept;
+        PressureController& setPressureError(std::float32_t const& error) noexcept;
 
     private:
+        std::float32_t pressure_error;
+        
+        // PWM related
         static constexpr uint kPwmChanGate = PWM_CHAN_A;
         static constexpr uint kPwmChanPump = PWM_CHAN_B;
 
@@ -49,21 +52,28 @@ class PressureController {
         std::uint16_t gate_pwm_level_percentage = 0;
         std::uint16_t pump_pwm_level_percentage = 0;
 
+        // PID related
+        static constexpr std::float32_t kPidDeadBandThreshold = 100.0_pa;
         struct PidConstant {
             static constexpr std::float32_t kp = 0.0f;
             static constexpr std::float32_t ki = 0.0f;
             static constexpr std::float32_t kd = 0.0f;
         };
-        std::float32_t pressure_error = 0.0_pa;
-        std::float32_t prev_pressure = 0.0_pa;
-        std::float32_t target_pressure = 0.0_pa;
+        std::float32_t pid_error_prev      = 0.0_pa;
+        std::float32_t pid_integral        = 0.0_pa;
+        std::float32_t pid_prev_pressure   = 0.0_pa;
+        std::uint64_t  pid_prev_time       = 0u;
+        std::float32_t pid_target_pressure = 0.0_pa;
+
+        // EMA related
+        static constexpr std::float32_t kEmaAlpha = 0.05f;
 
         // Set the output level percentage for gate control, the range of percentage is [0.0f, 1.0f]
-        void setGatePwmPercentage(float const& percentage) noexcept;
+        PressureController& setGatePwmPercentage(float const& percentage) noexcept;
         // Set the output level percentage for pump control, the range of percentage is [0.0f, 1.0f]
-        void setPumpPwmPercentage(float const& percentage) noexcept;
+        PressureController& setPumpPwmPercentage(float const& percentage) noexcept;
 };
 
-} // bps::sampler::pneumatic
+} // namespace bps::sampler::pneumatic
 
 #endif // BPS_PRESSURE_CONTROLLER_HPP

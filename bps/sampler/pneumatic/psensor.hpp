@@ -161,6 +161,6 @@ inline bool checkSensorConversionStatusAttemptsBlocking(std::size_t const& attem
     return false;
 }
 
-} // bps::sampler::pneumatic
+} // namespace bps::sampler::pneumatic
 
 #endif

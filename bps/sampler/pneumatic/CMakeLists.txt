@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.11)
 add_library(bps_pneumatic STATIC
     "${CMAKE_CURRENT_LIST_DIR}/psensor.cpp"
     "${CMAKE_CURRENT_LIST_DIR}/pcontroller.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/phandler.cpp"
 )
 
 target_include_directories(bps_pneumatic PUBLIC
