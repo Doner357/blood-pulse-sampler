@@ -29,7 +29,7 @@ PressureController::PressureController(uint const& chan_a_gpio, std::float32_t c
     // Set the wrap, which tweak the maximum frequency to 1kHz
     pwm_set_wrap(this->slice_num, kPwmMaxWrap);
     // Set pwm level to 0 (no output)
-    setGatePwmPercentage(0.0f);
+    setValvePwmPercentage(0.0f);
     setPumpPwmPercentage(0.0f);
     // Set pwm running
     pwm_set_enabled(this->slice_num, true);
@@ -72,14 +72,14 @@ PressureController& PressureController::setPressureError(std::float32_t const& e
     return *this;
 }
 
-PressureController& PressureController::setGatePwmPercentage(float const& percentage) noexcept {
-    this->gate_pwm_level_percentage = percentage;
+PressureController& PressureController::setValvePwmPercentage(float const& percentage) noexcept {
+    this->valve_pwm_level_percentage = percentage;
     std::uint16_t level = std::clamp(
                             static_cast<std::uint16_t>(percentage * kPwmMaxWrap),
                             static_cast<std::uint16_t>(0),
                             kPwmMaxWrap
                           );
-    pwm_set_chan_level(this->slice_num, kPwmChanGate, level);
+    pwm_set_chan_level(this->slice_num, kPwmChanValve, level);
     
     return *this;
 }
