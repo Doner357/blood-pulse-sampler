@@ -1,54 +1,58 @@
 #include "phandler.hpp"
 
+#include <FreeRTOS.h>
+
 #include <pico/stdlib.h>
 
 #include <cstdint>
 #include <stdfloat>
 
-#include "psensor.hpp"
+#include "pcontroller.hpp"
 
 namespace bps::sampler::pneumatic {
 
 PneumaticHandler::PneumaticHandler() noexcept {}
 
 void PneumaticHandler::initialize() noexcept {
-    constexpr std::uint8_t kSamples = 100;
-
-    this->cun_controller.setValvePwmPercentage(1.0f).setPumpPwmPercentage(0.0f);
-    this->guan_controller.setValvePwmPercentage(1.0f).setPumpPwmPercentage(0.0f);
-    this->chi_controller.set
-    
-    std::float32_t cun_error  = 0.0_pa;
-    std::float32_t guan_error = 0.0_pa;
-    std::float32_t chi_error  = 0.0_pa;
-    std::uint8_t num_miss_samples = 0;
-
-    for (std::uint8_t i = 0; i < kSamples; ++i) {
-        auto pulse_value = readPressureSensorPipelinedSleeping();
-        if (pulse_value) {
-            cun_error
-        } else {
-            ++num_miss_samples;
-        }
-    }
+    this->cun_controller.initialize();
+    this->guan_controller.initialize();
+    this->chi_controller.initialize();
 }
 
-void PneumaticHandler::triger(PulseValue const& pulse_value) noexcept {
-    this->cun_controller.executePid(pulse_value.cun, pulse_value.timestemp);
-    this->guan_controller.executePid(pulse_value.guan, pulse_value.chi);
-    this->chi_controller.executePid(pulse_value.chi, pulse_value.timestemp);
+void PneumaticHandler::createTask(UBaseType_t const& priority) noexcept {
+    this->cun_controller.createTask(priority);
+    this->cun_controller.createTask(priority);
+    this->cun_controller.createTask(priority);
+}
+
+void PneumaticHandler::trigger(PulseValue const& pulse_value) noexcept {
+    this->cun_controller.getPidTriggerPackQueueRef().send(
+        PressureController::PidTriggerPack{ pulse_value.cun, pulse_value.timestemp },
+        pdTICKS_TO_MS(0)
+    );
+    this->guan_controller.getPidTriggerPackQueueRef().send(
+        PressureController::PidTriggerPack{ pulse_value.guan, pulse_value.timestemp },
+        pdTICKS_TO_MS(0)
+    );
+    this->chi_controller.getPidTriggerPackQueueRef().send(
+        PressureController::PidTriggerPack{ pulse_value.chi, pulse_value.timestemp },
+        pdTICKS_TO_MS(0)
+    );
 }
 
 PneumaticHandler& PneumaticHandler::setCunPressure(std::float32_t const& pressure) noexcept {
-    this->cun_controller.setTargetPressure(pressure);
+    this->cun_controller.getPidTargetPressureQueueRef().send(pressure, pdTICKS_TO_MS(0));
+    return *this;
 }
 
 PneumaticHandler& PneumaticHandler::setGaunPressure(std::float32_t const& pressure) noexcept {
-    this->guan_controller.setTargetPressure(pressure);
+    this->guan_controller.getPidTargetPressureQueueRef().send(pressure, pdTICKS_TO_MS(0));
+    return *this;
 }
 
 PneumaticHandler& PneumaticHandler::setChiPressure(std::float32_t const& pressure) noexcept {
-    this->chi_controller.setPressureError(pressure);
+    this->chi_controller.getPidTargetPressureQueueRef().send(pressure, pdTICKS_TO_MS(0));
+    return *this;
 }
 
 } // namespace bps::sampler::pneumatic
