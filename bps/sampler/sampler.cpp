@@ -1,7 +1,7 @@
 #include "sampler.hpp"
 
 #include "pneumatic/psensor.hpp"
-#include "pneumatic/pcontroller.hpp"
+#include "pneumatic/phandler.hpp"
 
 namespace bps::sampler {
 

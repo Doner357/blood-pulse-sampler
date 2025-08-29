@@ -51,7 +51,7 @@ void PressureController::executePid(std::float32_t const& current_pressure, std:
     }
 
     this->pid_integral = this->pid_integral + (error * interval_us);
-    std::float32_t derivative = (error - this->pid_error_prev) / interval_us;
+    std::float32_t derivative = (error - this->pid_prev_error) / interval_us;
     std::float32_t output = (PidConstant::kp * error) + 
                             (PidConstant::ki * this->pid_integral) + 
                             (PidConstant::kd * derivative);
@@ -59,10 +59,10 @@ void PressureController::executePid(std::float32_t const& current_pressure, std:
     /* TODO: Update PWM part */
     
     this->pid_prev_pressure = filtered_value;
-    this->pid_error_prev = error;
+    this->pid_prev_error = error;
 }
 
-PressureController& PressureController::setNewTargetPressure(std::float32_t const& new_target) noexcept {
+PressureController& PressureController::setTargetPressure(std::float32_t const& new_target) noexcept {
     this->pid_target_pressure = new_target;
     return *this;
 }

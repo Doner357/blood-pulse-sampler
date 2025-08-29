@@ -1,11 +1,11 @@
 #ifndef BPS_PRESSURE_CONTROLLER_HPP
 #define BPS_PRESSURE_CONTROLLER_HPP
 
-#include <stdfloat>
-#include <cstdint>
-
 #include <pico/stdlib.h>
 #include <hardware/pwm.h>
+
+#include <stdfloat>
+#include <cstdint>
 
 #include "common.hpp"
 
@@ -33,8 +33,13 @@ class PressureController {
         PressureController(uint const& chan_a_gpio, std::float32_t const& pressure_base_error = 0.0_pa) noexcept;
 
         void executePid(std::float32_t const& current_pressure, std::uint64_t const& current_time) noexcept;
-        PressureController& setNewTargetPressure(std::float32_t const& new_target) noexcept;
+        PressureController& setTargetPressure(std::float32_t const& new_target) noexcept;
         PressureController& setPressureError(std::float32_t const& error) noexcept;
+
+        // Set the output level percentage for valve control, the range of percentage is [0.0f, 1.0f]
+        PressureController& setValvePwmPercentage(float const& percentage) noexcept;
+        // Set the output level percentage for pump control, the range of percentage is [0.0f, 1.0f]
+        PressureController& setPumpPwmPercentage(float const& percentage) noexcept;
 
     private:
         std::float32_t pressure_error;
@@ -59,19 +64,14 @@ class PressureController {
             static constexpr std::float32_t ki = 0.0f;
             static constexpr std::float32_t kd = 0.0f;
         };
-        std::float32_t pid_error_prev      = 0.0_pa;
         std::float32_t pid_integral        = 0.0_pa;
+        std::float32_t pid_prev_error      = 0.0_pa;
         std::float32_t pid_prev_pressure   = 0.0_pa;
         std::uint64_t  pid_prev_time       = 0u;
         std::float32_t pid_target_pressure = 0.0_pa;
 
         // EMA related
         static constexpr std::float32_t kEmaAlpha = 0.05f;
-
-        // Set the output level percentage for valve control, the range of percentage is [0.0f, 1.0f]
-        PressureController& setValvePwmPercentage(float const& percentage) noexcept;
-        // Set the output level percentage for pump control, the range of percentage is [0.0f, 1.0f]
-        PressureController& setPumpPwmPercentage(float const& percentage) noexcept;
 };
 
 } // namespace bps::sampler::pneumatic
