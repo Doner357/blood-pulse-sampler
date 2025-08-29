@@ -23,7 +23,8 @@ class PneumaticHandler {
         PneumaticHandler& operator=(PneumaticHandler const&) = delete;
 
         void initialize() noexcept;
-        void triger(PulseValue const& pulse_value) noexcept;
+        void createTask(UBaseType_t const& priority) noexcept;
+        void trigger(PulseValue const& pulse_value) noexcept;
         PneumaticHandler& setCunPressure(std::float32_t const& pressure) noexcept;
         PneumaticHandler& setGaunPressure(std::float32_t const& pressure) noexcept;
         PneumaticHandler& setChiPressure(std::float32_t const& pressure) noexcept;
@@ -31,16 +32,16 @@ class PneumaticHandler {
     private:
         PneumaticHandler() noexcept;
 
-        static constexpr uint kCunValvePwmGpioPin  = 6;
-        static constexpr uint kCunPumpPwmGpioPin   = kCunValvePwmGpioPin + 1;
-        static constexpr uint kGuanValvePwmGpioPin = 8;
-        static constexpr uint kGuanPumpPwmGpioPin  = kGuanValvePwmGpioPin + 1;
-        static constexpr uint kChiValvePwmGpioPin  = 10;
-        static constexpr uint kChiPumpPwmGpioPin   = kChiValvePwmGpioPin + 1;
+        static constexpr uint kCunPumpPwmGpioPin   = 6;
+        static constexpr uint kCunValvePwmGpioPin  = kCunPumpPwmGpioPin + 1;
+        static constexpr uint kGuanPumpPwmGpioPin  = 8;
+        static constexpr uint kGuanValvePwmGpioPin = kGuanPumpPwmGpioPin + 1;
+        static constexpr uint kChiPumpPwmGpioPin   = 10;
+        static constexpr uint kChiValvePwmGpioPin  = kChiPumpPwmGpioPin + 1;
 
-        PressureController cun_controller{kCunValvePwmGpioPin};
-        PressureController guan_controller{kGuanValvePwmGpioPin};
-        PressureController chi_controller{kChiValvePwmGpioPin};
+        PressureController cun_controller{kCunPumpPwmGpioPin};
+        PressureController guan_controller{kGuanPumpPwmGpioPin};
+        PressureController chi_controller{kChiPumpPwmGpioPin};
 };
 
 } // namespace bps::sampler::pneumatic

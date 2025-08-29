@@ -11,16 +11,19 @@
 
 #include "common.hpp"
 #include "queue.hpp"
+#include "pneumatic/phandler.hpp"
 
 namespace bps::sampler {
 
+// Meyers' Singleton Implementation
 class SamplerService {
     public:
+        // Predefined type for convenience usages
         static SamplerService& getInstance() noexcept {
             static SamplerService service;
             return service;
         }
-
+        
         SamplerService(SamplerService const&) = delete;
         SamplerService& operator=(SamplerService const&) = delete;
         
@@ -44,6 +47,8 @@ class SamplerService {
         > queue_set = makeQueueSet(
             this->command_queue
         );
+
+        pneumatic::PneumaticHandler& pneumatic_handler;
 
         // FreeRTOS task
         TaskHandle_t task_handle{nullptr};

@@ -1,52 +1,39 @@
 #ifndef BPS_PRESSURE_CONTROLLER_HPP
 #define BPS_PRESSURE_CONTROLLER_HPP
 
+#include <FreeRTOS.h>
+
 #include <pico/stdlib.h>
 #include <hardware/pwm.h>
 
 #include <stdfloat>
 #include <cstdint>
+#include <array>
 
 #include "common.hpp"
+#include "queue.hpp"
 
 namespace bps::sampler::pneumatic {
 
 class PressureController {
     public:
-        /**
-         * @brief Initializes a controller for a pair of PWM channels (A and B) on a single PWM slice.
-         *
-         * This constructor configures the controller to manage both channels of a PWM slice.
-         * The slice is identified by the GPIO pin number provided for Channel A.
-         *
-         * @param chan_a_gpio The GPIO pin number that is physically connected to a PWM channel A.
-         *
-         * @note The corresponding Channel B GPIO pin is automatically deduced and managed by this
-         *       controller as well. For instance, if you provide GPIO 0 (Slice 0, Channel A),
-         *       the controller will automatically manage GPIO 1 (Slice 0, Channel B).
-         *
-         * @warning The provided GPIO pin **must** be one that maps to a PWM Channel A
-         *          (typically an even-numbered GPIO on the RP2040 & RP2350). Providing a GPIO that
-         *          maps to a Channel B will result in an assertion failure during initialization.
-         *          This constructor will also cause the taskDelay to the caller.
-         */
-        PressureController(uint const& chan_a_gpio, std::float32_t const& pressure_base_error = 0.0_pa) noexcept;
+        struct PidTriggerPack {
+            std::float32_t current_pressure = 0.0_pa;
+            std::uint64_t  current_time_us  = 0;
+        };
 
-        void executePid(std::float32_t const& current_pressure, std::uint64_t const& current_time) noexcept;
-        PressureController& setTargetPressure(std::float32_t const& new_target) noexcept;
-        PressureController& setPressureError(std::float32_t const& error) noexcept;
+        PressureController(uint const& chan_a_gpio) noexcept;
 
-        // Set the output level percentage for valve control, the range of percentage is [0.0f, 1.0f]
-        PressureController& setValvePwmPercentage(float const& percentage) noexcept;
-        // Set the output level percentage for pump control, the range of percentage is [0.0f, 1.0f]
-        PressureController& setPumpPwmPercentage(float const& percentage) noexcept;
+        void initialize() noexcept;
+        void createTask(UBaseType_t const& priority) noexcept;
 
-    private:
-        std::float32_t pressure_error;
+        QueueReference<PidTriggerPack> getPidTriggerPackQueueRef() const noexcept;
+        QueueReference<std::float32_t> getPidTargetPressureQueueRef() const noexcept;
         
+    private:
         // PWM related
-        static constexpr uint kPwmChanValve = PWM_CHAN_A;
-        static constexpr uint kPwmChanPump  = PWM_CHAN_B;
+        static constexpr uint kPwmChanPump  = PWM_CHAN_A;
+        static constexpr uint kPwmChanValve = PWM_CHAN_B;
 
         static constexpr float    kPwmClkDiv  = 150.0f;
         static constexpr uint16_t kPwmMaxWrap = 999;
@@ -70,8 +57,35 @@ class PressureController {
         std::uint64_t  pid_prev_time       = 0u;
         std::float32_t pid_target_pressure = 0.0_pa;
 
+        void executePid(std::float32_t const& current_pressure, std::uint64_t const& current_time) noexcept;
+
         // EMA related
         static constexpr std::float32_t kEmaAlpha = 0.05f;
+
+        StaticQueue<PidTriggerPack, 512> pid_trigger_pack_queue{};
+        StaticQueue<std::float32_t, 3> pid_target_pressure_queue{};
+
+        // Task related
+        StaticQueueSet<
+            decltype(pid_trigger_pack_queue),
+            decltype(pid_target_pressure_queue)
+        > queue_set {
+            this->pid_trigger_pack_queue,
+            this->pid_target_pressure_queue
+        };
+
+        // Set the output level percentage for valve control, the range of percentage is [0.0f, 1.0f]
+        PressureController& setValvePwmPercentage(float const& percentage) noexcept;
+        // Set the output level percentage for pump control, the range of percentage is [0.0f, 1.0f]
+        PressureController& setPumpPwmPercentage(float const& percentage) noexcept;
+        
+        // FreeRTOS task
+        static constexpr std::size_t kMaxLenOfTaskName = 25;
+        static std::uint8_t task_counter;
+        std::uint8_t task_id;
+        TaskHandle_t task_handle{nullptr};
+        std::array<char, kMaxLenOfTaskName> task_name{"Pressure Controller "};
+        void taskLoop() noexcept;
 };
 
 } // namespace bps::sampler::pneumatic
