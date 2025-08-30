@@ -116,7 +116,9 @@ std::expected<Command, Error<std::byte>> GattServer::CustomCharacteristics::getC
             readAsNativeEndian(&this->command[1], command_pack.content.sample_time_ms);
             break;
         case CommandType::eSetPressure:
-            readAsNativeEndian(&this->command[1], command_pack.content.pressure_settings);
+            readAsNativeEndian(&this->command[1 + 0 * sizeof(std::float32_t)], command_pack.content.pressure_settings.cun);
+            readAsNativeEndian(&this->command[1 + 1 * sizeof(std::float32_t)], command_pack.content.pressure_settings.guan);
+            readAsNativeEndian(&this->command[1 + 2 * sizeof(std::float32_t)], command_pack.content.pressure_settings.chi);
             break;
         default:
             break;
