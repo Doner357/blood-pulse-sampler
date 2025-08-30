@@ -2,6 +2,7 @@
 #define BPS_PRESSURE_CONTROLLER_HPP
 
 #include <FreeRTOS.h>
+#include <semphr.h>
 
 #include <pico/stdlib.h>
 #include <hardware/pwm.h>
@@ -38,29 +39,32 @@ class PressureController {
         static constexpr float    kPwmClkDiv  = 150.0f;
         static constexpr uint16_t kPwmMaxWrap = 999;
 
-        uint chan_a_gpio_pin;
-        uint chan_b_gpio_pin;
+        uint pump_gpio_pin;
+        uint valve_gpio_pin;
         uint slice_num;
-        std::uint16_t valve_pwm_level_percentage = 0;
-        std::uint16_t pump_pwm_level_percentage  = 0;
+        float pump_pwm_level_percentage  = 0.0f;
+        float valve_pwm_level_percentage = 0.0f;
 
         // PID related
-        static constexpr std::float32_t kPidDeadBandThreshold = 100.0_pa;
+        static constexpr std::float32_t kPidDeadBandThreshold = 50.0_pa;
         struct PidConstant {
-            static constexpr std::float32_t kp = 0.0f;
+            static constexpr std::float32_t kp = 0.0025f;
             static constexpr std::float32_t ki = 0.0f;
             static constexpr std::float32_t kd = 0.0f;
         };
         std::float32_t pid_integral        = 0.0_pa;
         std::float32_t pid_prev_error      = 0.0_pa;
         std::float32_t pid_prev_pressure   = 0.0_pa;
+        float          pid_prev_output     = 0.0f;
         std::uint64_t  pid_prev_time       = 0u;
         std::float32_t pid_target_pressure = 0.0_pa;
 
         void executePid(std::float32_t const& current_pressure, std::uint64_t const& current_time) noexcept;
+        void pidProcessRelease(float const& pid_output) noexcept;
 
         // EMA related
         static constexpr std::float32_t kEmaAlpha = 0.05f;
+        bool is_first_filtering = true;
 
         StaticQueue<PidTriggerPack, 512> pid_trigger_pack_queue{};
         StaticQueue<std::float32_t, 3> pid_target_pressure_queue{};
@@ -73,18 +77,19 @@ class PressureController {
             this->pid_trigger_pack_queue,
             this->pid_target_pressure_queue
         };
-
-        // Set the output level percentage for valve control, the range of percentage is [0.0f, 1.0f]
-        PressureController& setValvePwmPercentage(float const& percentage) noexcept;
+        
         // Set the output level percentage for pump control, the range of percentage is [0.0f, 1.0f]
+        PressureController& setValvePwmPercentage(float const& percentage) noexcept;
         PressureController& setPumpPwmPercentage(float const& percentage) noexcept;
         
         // FreeRTOS task
         static constexpr std::size_t kMaxLenOfTaskName = 25;
         static std::uint8_t task_counter;
         std::uint8_t task_id;
-        TaskHandle_t task_handle{nullptr};
-        std::array<char, kMaxLenOfTaskName> task_name{"Pressure Controller "};
+        TaskHandle_t task_handle = nullptr;
+        SemaphoreHandle_t valve_done_sem = nullptr;
+        StaticSemaphore_t valve_sem_buffer{};
+        std::array<char, kMaxLenOfTaskName> task_name{0};
         void taskLoop() noexcept;
 };
 
