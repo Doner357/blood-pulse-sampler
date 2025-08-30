@@ -11,7 +11,11 @@
 namespace bps::logger {
 
 inline bool initializeLogger() noexcept {
+#ifndef NDEBUG
     return stdio_init_all();
+#else
+    return false
+#endif
 }
 
 // --- Low-level logging implementation function (for internal use) ---
