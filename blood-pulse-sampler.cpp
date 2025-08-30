@@ -1,7 +1,7 @@
 #include <pico/stdlib.h>
 
 #include "bps/ble_service/ble_service.hpp"
-#include "bps/sampler/sampler.hpp"
+#include "bps/sampler_service/sampler_service.hpp"
 #include "bps/logger/logger.hpp"
 
 int main() {
