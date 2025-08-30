@@ -2,8 +2,13 @@
 
 #include "bps/ble_service/ble_service.hpp"
 #include "bps/sampler/sampler.hpp"
+#include "bps/logger/logger.hpp"
 
 int main() {
+    bps::logger::initializeLogger();
+    sleep_ms(1000);
+    
+    BPS_LOG("Start BPS!\n");
 
     auto& ble_service = bps::ble::BleService::getInstance();
     ble_service.initialize();
