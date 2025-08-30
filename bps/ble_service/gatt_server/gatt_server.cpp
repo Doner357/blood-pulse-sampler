@@ -61,8 +61,8 @@ GattServer::CustomCharacteristics& GattServer::CustomCharacteristics::setPulseVa
 ) noexcept {
     std::size_t offset = 0;
 
-    writeAsLittleEndian(value.timestemp, &this->pulse_value[offset]);
-    offset += sizeof(value.timestemp);
+    writeAsLittleEndian(value.timestamp, &this->pulse_value[offset]);
+    offset += sizeof(value.timestamp);
 
     writeAsLittleEndian(value.cun, &this->pulse_value[offset]);
     offset += sizeof(value.cun);
@@ -76,14 +76,14 @@ GattServer::CustomCharacteristics& GattServer::CustomCharacteristics::setPulseVa
 }
 
 GattServer::CustomCharacteristics& GattServer::CustomCharacteristics::setPulseValue(
-    std::uint64_t  const& timestemp,
+    std::uint64_t  const& timestamp,
     std::float32_t const& cun,
     std::float32_t const& guan,
     std::float32_t const& chi
 ) noexcept {
     return setPulseValue(
         PulseValue{
-            .timestemp = timestemp,
+            .timestamp = timestamp,
             .cun       = cun,
             .guan      = guan,
             .chi       = chi
@@ -144,8 +144,8 @@ PulseValue GattServer::CustomCharacteristics::getPulseValue() const noexcept {
 
     std::size_t offset = 0;
 
-    readAsNativeEndian(&this->pulse_value[offset], value.timestemp);
-    offset += sizeof(value.timestemp);
+    readAsNativeEndian(&this->pulse_value[offset], value.timestamp);
+    offset += sizeof(value.timestamp);
 
     readAsNativeEndian(&this->pulse_value[offset], value.cun);
     offset += sizeof(value.cun);
@@ -346,14 +346,14 @@ GattServer& GattServer::sendPulseValue(
 }
 
 GattServer& GattServer::sendPulseValue(
-    std::uint64_t  const& timestemp,
+    std::uint64_t  const& timestamp,
     std::float32_t const& cun,
     std::float32_t const& guan,
     std::float32_t const& chi
 ) noexcept {
     return this->sendPulseValue(
         PulseValue {
-            .timestemp = timestemp,
+            .timestamp = timestamp,
             .cun = cun,
             .guan = guan,
             .chi = chi

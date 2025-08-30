@@ -143,7 +143,7 @@ struct Command {
 
 // Pack one pulse sample information
 struct PulseValue {
-    std::uint64_t  timestemp = 0;
+    std::uint64_t  timestamp = 0;
     std::float32_t cun  = 0.0_pa;
     std::float32_t guan = 0.0_pa;
     std::float32_t chi  = 0.0_pa;

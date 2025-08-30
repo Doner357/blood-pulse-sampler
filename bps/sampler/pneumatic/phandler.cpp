@@ -27,15 +27,15 @@ void PneumaticHandler::createTask(UBaseType_t const& priority) noexcept {
 
 void PneumaticHandler::trigger(PulseValue const& pulse_value) noexcept {
     this->cun_controller.getPidTriggerPackQueueRef().send(
-        PressureController::PidTriggerPack{ pulse_value.cun, pulse_value.timestemp },
+        PressureController::PidTriggerPack{ pulse_value.cun, pulse_value.timestamp },
         pdTICKS_TO_MS(0)
     );
     this->guan_controller.getPidTriggerPackQueueRef().send(
-        PressureController::PidTriggerPack{ pulse_value.guan, pulse_value.timestemp },
+        PressureController::PidTriggerPack{ pulse_value.guan, pulse_value.timestamp },
         pdTICKS_TO_MS(0)
     );
     this->chi_controller.getPidTriggerPackQueueRef().send(
-        PressureController::PidTriggerPack{ pulse_value.chi, pulse_value.timestemp },
+        PressureController::PidTriggerPack{ pulse_value.chi, pulse_value.timestamp },
         pdTICKS_TO_MS(0)
     );
 }

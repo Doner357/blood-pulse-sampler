@@ -87,7 +87,7 @@ std::expected<PulseValue, Error<int>> PressureSensors::readPressureSensorPipelin
         }
     }
 
-    value.timestemp = get_absolute_time();
+    value.timestamp = get_absolute_time();
 
     return value;
 }
@@ -148,7 +148,7 @@ std::expected<PulseValue, Error<int>> PressureSensors::readPressureSensorPipelin
         }
     }
 
-    value.timestemp = get_absolute_time();
+    value.timestamp = get_absolute_time();
 
     return value;
 }
