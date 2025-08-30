@@ -15,6 +15,7 @@ target_link_libraries(bps_pneumatic
         compile_options
     PUBLIC
         bps_common
+        bps_logger
         pico_time
         pico_stdlib
         hardware_i2c

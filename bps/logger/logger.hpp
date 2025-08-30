@@ -1,5 +1,5 @@
-#ifndef BPS_LOGGER_H
-#define BPS_LOGGER_H
+#ifndef BPS_LOGGER_HPP
+#define BPS_LOGGER_HPP
 
 // Only include headers and define code if not in release mode (NDEBUG is not defined)
 #ifndef NDEBUG
@@ -51,4 +51,4 @@ inline void log_impl(const char* file, int line, const char* func, const char* f
 // ##__VA_ARGS__ handles cases where no optional arguments are provided.
 #define BPS_LOG(fmt, ...) bps::logger::log_impl(__FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
 
-#endif // BPS_LOGGER_H
+#endif // BPS_LOGGER_HPP

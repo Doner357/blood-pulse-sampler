@@ -15,5 +15,6 @@ target_link_libraries(bps_sampler
     PRIVATE
         compile_options
     PUBLIC
+        bps_logger
         bps_pneumatic
 )
