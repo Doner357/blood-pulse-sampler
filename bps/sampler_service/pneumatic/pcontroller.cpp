@@ -64,12 +64,12 @@ void PressureController::createTask(UBaseType_t const& priority) noexcept {
     );
 }
 
-QueueReference<PressureController::PidTriggerPack> PressureController::getPidTriggerPackQueueRef() const noexcept {
-    return this->pid_trigger_pack_queue;
+QueueReference<PressureController::TriggerPack> PressureController::getTriggerPackQueueRef() const noexcept {
+    return this->trigger_pack_queue;
 }
 
-QueueReference<std::float32_t> PressureController::getPidTargetPressureQueueRef() const noexcept {
-    return this->pid_target_pressure_queue;
+QueueReference<std::float32_t> PressureController::getTargetPressureQueueRef() const noexcept {
+    return this->target_pressure_queue;
 }
 
 PressureController& PressureController::setValvePwmPercentage(float const& percentage) noexcept {
@@ -96,64 +96,42 @@ PressureController& PressureController::setPumpPwmPercentage(float const& percen
     return *this;
 }
 
-void PressureController::executePid(std::float32_t const& current_pressure, std::uint64_t const& current_time) noexcept {
+void PressureController::controlPressure(std::float32_t const& current_pressure) noexcept {
     if (current_pressure > 90000.0_pa) {
         this->setPumpPwmPercentage(0.0f).setValvePwmPercentage(0.0f);
         return;
     }
     
-    std::uint64_t interval_us = current_time - this->pid_prev_time;
-    if (interval_us == 0) return;
-    
     // Signal Processing (Exponential Moving Average)
     if (this->is_first_filtering) {
-        this->pid_prev_pressure = current_pressure;
+        this->prev_pressure = current_pressure;
         this->is_first_filtering = false;
     }
-    std::float32_t filtered_value = kEmaAlpha * current_pressure + (1 - kEmaAlpha) * pid_prev_pressure;
+    std::float32_t filtered_value = kEmaAlpha * current_pressure + (1 - kEmaAlpha) * prev_pressure;
     
     // --- PID ---
-    std::float32_t error = this->pid_target_pressure - filtered_value;
-    float output = 0.0f;
+    std::float32_t error = this->target_pressure - filtered_value;
+    float output = kp * error;
 
-    if (std::abs(error) < kPidDeadBandThreshold) {
-        this->pid_integral *= 0.95f;
-    } else {
-        if (std::abs(this->pid_prev_output) < 1.0f) {
-            this->pid_integral += (error * interval_us);
-        }
-
-        // this->pid_integral = std::clamp(static_cast<float>(this->pid_integral), -1.0f, 1.0f);
-
-        float derivative = (this->pid_prev_pressure - filtered_value) / interval_us;
-
-        output = (PidConstant::kp * error) + 
-                 (PidConstant::ki * this->pid_integral) + 
-                 (PidConstant::kd * derivative);
-    }
-
-    output = this->pid_target_pressure < 100.0f ? 0.0f : std::clamp(output, -1.0f, 1.0f);
-    this->pid_prev_output = output;
+    output = this->target_pressure < 100.0f ? 0.0f : std::clamp(output, -1.0f, 1.0f);
     if (output > 0.0f) {
         setValvePwmPercentage(1.0f);
         setPumpPwmPercentage(output);
     } else if (output < 0.0f) {
-        pidProcessRelease(output);
+        pressureProcessRelease(output);
     } else {
         setValvePwmPercentage(0.0f);
         setPumpPwmPercentage(0.0f);
     }
     
-    this->pid_prev_time = current_time;
-    this->pid_prev_pressure = filtered_value;
-    this->pid_prev_error = error;
+    this->prev_pressure = filtered_value;
 }
 
-void PressureController::pidProcessRelease(float const& pid_output) noexcept {
+void PressureController::pressureProcessRelease(float const& p_output) noexcept {
     setPumpPwmPercentage(0.0f);
 
     constexpr std::uint64_t kMaxVentUsPerCycle = 7000;
-    std::uint64_t open_time_us = static_cast<std::uint64_t>(-pid_output * kMaxVentUsPerCycle);
+    std::uint64_t open_time_us = static_cast<std::uint64_t>(std::pow(p_output, 2) * kMaxVentUsPerCycle);
     
     if (open_time_us < 50) {
         setValvePwmPercentage(1.0f);
@@ -180,15 +158,13 @@ void PressureController::taskLoop() noexcept {
     while (true) {
         std::expected<QueueHandle_t, std::nullptr_t> selected_handle{};
         if ((selected_handle = this->queue_set.selectFromSet(portMAX_DELAY))) {
-            if (selected_handle == this->pid_trigger_pack_queue.getFreeRTOSQueueHandle()) {
-                PidTriggerPack trigger_pack{};
-                this->pid_trigger_pack_queue.receive(trigger_pack, pdTICKS_TO_MS(0));
-                executePid(trigger_pack.current_pressure, trigger_pack.current_time_us);
-            } else if (selected_handle == this->pid_target_pressure_queue.getFreeRTOSQueueHandle()) {
-                std::float32_t target_pressure = 0.0f;
-                this->pid_target_pressure_queue.receive(target_pressure, pdTICKS_TO_MS(0));
-                this->pid_target_pressure = target_pressure;
-                BPS_LOG("%s: Set target pressure to %f\n", this->task_name.data(), static_cast<double>(target_pressure));
+            if (selected_handle == this->trigger_pack_queue.getFreeRTOSQueueHandle()) {
+                TriggerPack trigger_pack{};
+                this->trigger_pack_queue.receive(trigger_pack, pdTICKS_TO_MS(0));
+                controlPressure(trigger_pack.current_pressure);
+            } else if (selected_handle == this->target_pressure_queue.getFreeRTOSQueueHandle()) {
+                this->target_pressure_queue.receive(this->target_pressure, pdTICKS_TO_MS(0));
+                BPS_LOG("%s: Set target pressure to %f\n", this->task_name.data(), static_cast<double>(this->target_pressure));
             }
         }
     }

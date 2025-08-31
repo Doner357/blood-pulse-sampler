@@ -14,7 +14,7 @@ inline bool initializeLogger() noexcept {
 #ifndef NDEBUG
     return stdio_init_all();
 #else
-    return false
+    return false;
 #endif
 }
 

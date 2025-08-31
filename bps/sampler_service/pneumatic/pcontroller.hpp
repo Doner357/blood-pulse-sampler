@@ -18,9 +18,8 @@ namespace bps::sampler::pneumatic {
 
 class PressureController {
     public:
-        struct PidTriggerPack {
+        struct TriggerPack {
             std::float32_t current_pressure = 0.0_pa;
-            std::uint64_t  current_time_us  = 0;
         };
 
         PressureController(uint const& chan_a_gpio) noexcept;
@@ -28,8 +27,8 @@ class PressureController {
         void initialize() noexcept;
         void createTask(UBaseType_t const& priority) noexcept;
 
-        QueueReference<PidTriggerPack> getPidTriggerPackQueueRef() const noexcept;
-        QueueReference<std::float32_t> getPidTargetPressureQueueRef() const noexcept;
+        QueueReference<TriggerPack> getTriggerPackQueueRef() const noexcept;
+        QueueReference<std::float32_t> getTargetPressureQueueRef() const noexcept;
         
     private:
         // PWM related
@@ -45,37 +44,28 @@ class PressureController {
         float pump_pwm_level_percentage  = 0.0f;
         float valve_pwm_level_percentage = 0.0f;
 
-        // PID related
-        static constexpr std::float32_t kPidDeadBandThreshold = 30.0_pa;
-        struct PidConstant {
-            static constexpr std::float32_t kp = 0.0005f;
-            static constexpr std::float32_t ki = 0.0000000000f;
-            static constexpr std::float32_t kd = 0.0f;
-        };
-        std::float32_t pid_integral        = 0.0_pa;
-        std::float32_t pid_prev_error      = 0.0_pa;
-        std::float32_t pid_prev_pressure   = 0.0_pa;
-        float          pid_prev_output     = 0.0f;
-        std::uint64_t  pid_prev_time       = 0u;
-        std::float32_t pid_target_pressure = 0.0_pa;
+        // Portional Control related
+        static constexpr std::float32_t kp = 0.0005f;
+        std::float32_t target_pressure = 0.0_pa;
 
-        void executePid(std::float32_t const& current_pressure, std::uint64_t const& current_time) noexcept;
-        void pidProcessRelease(float const& pid_output) noexcept;
+        void controlPressure(std::float32_t const& current_pressure) noexcept;
+        void pressureProcessRelease(float const& p_output) noexcept;
 
         // EMA related
         static constexpr std::float32_t kEmaAlpha = 0.05f;
+        std::float32_t prev_pressure   = 0.0_pa;
         bool is_first_filtering = true;
 
-        StaticQueue<PidTriggerPack, 512> pid_trigger_pack_queue{};
-        StaticQueue<std::float32_t, 3> pid_target_pressure_queue{};
+        StaticQueue<TriggerPack, 512> trigger_pack_queue{};
+        StaticQueue<std::float32_t, 3> target_pressure_queue{};
 
         // Task related
         StaticQueueSet<
-            decltype(pid_trigger_pack_queue),
-            decltype(pid_target_pressure_queue)
+            decltype(trigger_pack_queue),
+            decltype(target_pressure_queue)
         > queue_set {
-            this->pid_trigger_pack_queue,
-            this->pid_target_pressure_queue
+            this->trigger_pack_queue,
+            this->target_pressure_queue
         };
         
         // Set the output level percentage for pump control, the range of percentage is [0.0f, 1.0f]
