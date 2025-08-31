@@ -6,7 +6,6 @@
 
 int main() {
     bps::logger::initializeLogger();
-    sleep_ms(1000);
     
     BPS_LOG("Start BPS!\n");
 

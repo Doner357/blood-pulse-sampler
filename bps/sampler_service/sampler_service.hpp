@@ -60,6 +60,7 @@ class SamplerService {
         // Status storage
         static constexpr std::size_t kNeedSamples = 2000;
         Command current_command{};
+        CommandType prev_command_type;
         std::size_t remain_samples = 0;
 };
 

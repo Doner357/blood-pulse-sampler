@@ -26,7 +26,7 @@ class PneumaticHandler {
         void createTask(UBaseType_t const& priority) noexcept;
         void trigger(PulseValue const& pulse_value) noexcept;
         PneumaticHandler& setCunPressure(std::float32_t const& pressure) noexcept;
-        PneumaticHandler& setGaunPressure(std::float32_t const& pressure) noexcept;
+        PneumaticHandler& setGuanPressure(std::float32_t const& pressure) noexcept;
         PneumaticHandler& setChiPressure(std::float32_t const& pressure) noexcept;
 
     private:

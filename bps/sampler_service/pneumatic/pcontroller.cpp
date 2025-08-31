@@ -7,6 +7,7 @@
 #include <hardware/pwm.h>
 
 #include <algorithm>
+#include <cmath>
 #include <stdfloat>
 #include <cstdint>
 #include <array>
@@ -131,17 +132,17 @@ void PressureController::executePid(std::float32_t const& current_pressure, std:
                  (PidConstant::kd * derivative);
     }
 
-    output = std::clamp(output, -1.0f, 1.0f);
+    output = this->pid_target_pressure < 100.0f ? 0.0f : std::clamp(output, -1.0f, 1.0f);
     this->pid_prev_output = output;
     if (output > 0.0f) {
         setValvePwmPercentage(1.0f);
         setPumpPwmPercentage(output);
-    } else {
+    } else if (output < 0.0f) {
         pidProcessRelease(output);
+    } else {
+        setValvePwmPercentage(0.0f);
+        setPumpPwmPercentage(0.0f);
     }
-
-    // TODO: Update PWM part
-    BPS_LOG("INFO::PressureController::ID-%u:: Pid output: %f\n", this->task_id, static_cast<double>(output));
     
     this->pid_prev_time = current_time;
     this->pid_prev_pressure = filtered_value;
@@ -187,6 +188,7 @@ void PressureController::taskLoop() noexcept {
                 std::float32_t target_pressure = 0.0f;
                 this->pid_target_pressure_queue.receive(target_pressure, pdTICKS_TO_MS(0));
                 this->pid_target_pressure = target_pressure;
+                BPS_LOG("%s: Set target pressure to %f\n", this->task_name.data(), static_cast<double>(target_pressure));
             }
         }
     }

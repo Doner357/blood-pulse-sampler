@@ -36,8 +36,8 @@ class PressureController {
         static constexpr uint kPwmChanPump  = PWM_CHAN_A;
         static constexpr uint kPwmChanValve = PWM_CHAN_B;
 
-        static constexpr float    kPwmClkDiv  = 150.0f;
-        static constexpr uint16_t kPwmMaxWrap = 999;
+        static constexpr float    kPwmClkDiv  = 200.0f;
+        static constexpr uint16_t kPwmMaxWrap = 5000;
 
         uint pump_gpio_pin;
         uint valve_gpio_pin;
@@ -46,10 +46,10 @@ class PressureController {
         float valve_pwm_level_percentage = 0.0f;
 
         // PID related
-        static constexpr std::float32_t kPidDeadBandThreshold = 50.0_pa;
+        static constexpr std::float32_t kPidDeadBandThreshold = 30.0_pa;
         struct PidConstant {
-            static constexpr std::float32_t kp = 0.0025f;
-            static constexpr std::float32_t ki = 0.0f;
+            static constexpr std::float32_t kp = 0.0005f;
+            static constexpr std::float32_t ki = 0.0000000000f;
             static constexpr std::float32_t kd = 0.0f;
         };
         std::float32_t pid_integral        = 0.0_pa;

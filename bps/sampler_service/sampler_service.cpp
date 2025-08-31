@@ -85,6 +85,7 @@ void SamplerService::updateCurrentStatus() noexcept {
             ) {
                 this->remain_samples = 0;
             }
+            this->prev_command_type = this->current_command.command_type;
             this->current_command = new_command;
         }
     }
@@ -93,6 +94,7 @@ void SamplerService::updateCurrentStatus() noexcept {
 void SamplerService::processCurrentStatus() noexcept {
     static std::expected<bps::PulseValue, bps::Error<int>> value{};
     value = pneumatic::PressureSensors::getInstance().readPressureSensorPipelinedBlocking();
+    bps::Command::Content content{};
     if (value) {
         this->pneumatic_handler.trigger(value.value());
     }
@@ -104,11 +106,16 @@ void SamplerService::processCurrentStatus() noexcept {
         if (this->output_pulse_value_queue_ref.isValid() && value.has_value()) {
             output_pulse_value_queue_ref.send(value.value(), pdMS_TO_TICKS(0));
         }
-        if ((--this->remain_samples) == 0) {
+        if ((this->remain_samples) == 0) {
             this->current_command.command_type = CommandType::eStopSampling;
         }
         break;
     case CommandType::eSetPressure:
+        content = current_command.content;
+        this->pneumatic_handler.setCunPressure(content.pressure_settings.cun);
+        this->pneumatic_handler.setGuanPressure(content.pressure_settings.guan);
+        this->pneumatic_handler.setChiPressure(content.pressure_settings.chi);
+        this->current_command.command_type = this->prev_command_type;
         break;
     case CommandType::eNull:
         vTaskDelay(pdMS_TO_TICKS(10));

@@ -45,7 +45,7 @@ PneumaticHandler& PneumaticHandler::setCunPressure(std::float32_t const& pressur
     return *this;
 }
 
-PneumaticHandler& PneumaticHandler::setGaunPressure(std::float32_t const& pressure) noexcept {
+PneumaticHandler& PneumaticHandler::setGuanPressure(std::float32_t const& pressure) noexcept {
     this->guan_controller.getPidTargetPressureQueueRef().send(pressure, pdTICKS_TO_MS(0));
     return *this;
 }
