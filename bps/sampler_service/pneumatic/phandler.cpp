@@ -26,32 +26,32 @@ void PneumaticHandler::createTask(UBaseType_t const& priority) noexcept {
 }
 
 void PneumaticHandler::trigger(PulseValue const& pulse_value) noexcept {
-    this->cun_controller.getPidTriggerPackQueueRef().send(
-        PressureController::PidTriggerPack{ pulse_value.cun, pulse_value.timestamp },
+    this->cun_controller.getTriggerPackQueueRef().send(
+        PressureController::TriggerPack{ pulse_value.cun },
         pdTICKS_TO_MS(0)
     );
-    this->guan_controller.getPidTriggerPackQueueRef().send(
-        PressureController::PidTriggerPack{ pulse_value.guan, pulse_value.timestamp },
+    this->guan_controller.getTriggerPackQueueRef().send(
+        PressureController::TriggerPack{ pulse_value.guan },
         pdTICKS_TO_MS(0)
     );
-    this->chi_controller.getPidTriggerPackQueueRef().send(
-        PressureController::PidTriggerPack{ pulse_value.chi, pulse_value.timestamp },
+    this->chi_controller.getTriggerPackQueueRef().send(
+        PressureController::TriggerPack{ pulse_value.chi },
         pdTICKS_TO_MS(0)
     );
 }
 
 PneumaticHandler& PneumaticHandler::setCunPressure(std::float32_t const& pressure) noexcept {
-    this->cun_controller.getPidTargetPressureQueueRef().send(pressure, pdTICKS_TO_MS(0));
+    this->cun_controller.getTargetPressureQueueRef().send(pressure, pdTICKS_TO_MS(0));
     return *this;
 }
 
 PneumaticHandler& PneumaticHandler::setGuanPressure(std::float32_t const& pressure) noexcept {
-    this->guan_controller.getPidTargetPressureQueueRef().send(pressure, pdTICKS_TO_MS(0));
+    this->guan_controller.getTargetPressureQueueRef().send(pressure, pdTICKS_TO_MS(0));
     return *this;
 }
 
 PneumaticHandler& PneumaticHandler::setChiPressure(std::float32_t const& pressure) noexcept {
-    this->chi_controller.getPidTargetPressureQueueRef().send(pressure, pdTICKS_TO_MS(0));
+    this->chi_controller.getTargetPressureQueueRef().send(pressure, pdTICKS_TO_MS(0));
     return *this;
 }
 
