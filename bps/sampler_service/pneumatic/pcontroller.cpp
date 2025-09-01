@@ -109,19 +109,21 @@ void PressureController::controlPressure(std::float32_t const& current_pressure)
     }
     std::float32_t filtered_value = kEmaAlpha * current_pressure + (1 - kEmaAlpha) * prev_pressure;
     
-    // --- PID ---
-    std::float32_t error = this->target_pressure - filtered_value;
-    float output = kp * error;
-
-    output = this->target_pressure < 100.0f ? 0.0f : std::clamp(output, -1.0f, 1.0f);
-    if (output > 0.0f) {
-        setValvePwmPercentage(1.0f);
-        setPumpPwmPercentage(output);
-    } else if (output < 0.0f) {
-        pressureProcessRelease(output);
-    } else {
+    // Control
+    std::float32_t error = filtered_value - this->target_pressure;
+    if (this->target_pressure == 0.0f) {
+        this->is_stable = true;
         setValvePwmPercentage(0.0f);
         setPumpPwmPercentage(0.0f);
+    } else if (error >= 500 && error <= 1000) {
+        this->is_stable = true;
+        setValvePwmPercentage(1.0f);
+        setPumpPwmPercentage(0.0f);
+    } else if (filtered_value < (this->target_pressure + this->target_pressure * 0.1)) {
+        setValvePwmPercentage(1.0f);
+        setPumpPwmPercentage(1.0f);
+    } else if (filtered_value > this->target_pressure) {
+        pressureProcessRelease(-1.0f);
     }
     
     this->prev_pressure = filtered_value;
@@ -130,10 +132,10 @@ void PressureController::controlPressure(std::float32_t const& current_pressure)
 void PressureController::pressureProcessRelease(float const& p_output) noexcept {
     setPumpPwmPercentage(0.0f);
 
-    constexpr std::uint64_t kMaxVentUsPerCycle = 7000;
+    constexpr std::uint64_t kMaxVentUsPerCycle = 5000;
     std::uint64_t open_time_us = static_cast<std::uint64_t>(std::pow(p_output, 2) * kMaxVentUsPerCycle);
     
-    if (open_time_us < 50) {
+    if (open_time_us < 10) {
         setValvePwmPercentage(1.0f);
         return;
     }
@@ -161,10 +163,12 @@ void PressureController::taskLoop() noexcept {
             if (selected_handle == this->trigger_pack_queue.getFreeRTOSQueueHandle()) {
                 TriggerPack trigger_pack{};
                 this->trigger_pack_queue.receive(trigger_pack, pdTICKS_TO_MS(0));
-                controlPressure(trigger_pack.current_pressure);
+                if (!is_stable) {
+                    controlPressure(trigger_pack.current_pressure);
+                }
             } else if (selected_handle == this->target_pressure_queue.getFreeRTOSQueueHandle()) {
                 this->target_pressure_queue.receive(this->target_pressure, pdTICKS_TO_MS(0));
-                BPS_LOG("%s: Set target pressure to %f\n", this->task_name.data(), static_cast<double>(this->target_pressure));
+                this->is_stable = false;
             }
         }
     }

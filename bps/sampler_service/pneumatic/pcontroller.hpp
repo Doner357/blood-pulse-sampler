@@ -31,12 +31,15 @@ class PressureController {
         QueueReference<std::float32_t> getTargetPressureQueueRef() const noexcept;
         
     private:
+        // Status
+        bool is_stable = true;
+
         // PWM related
         static constexpr uint kPwmChanPump  = PWM_CHAN_A;
         static constexpr uint kPwmChanValve = PWM_CHAN_B;
 
         static constexpr float    kPwmClkDiv  = 200.0f;
-        static constexpr uint16_t kPwmMaxWrap = 5000;
+        static constexpr uint16_t kPwmMaxWrap = 20000;
 
         uint pump_gpio_pin;
         uint valve_gpio_pin;
@@ -44,15 +47,14 @@ class PressureController {
         float pump_pwm_level_percentage  = 0.0f;
         float valve_pwm_level_percentage = 0.0f;
 
-        // Portional Control related
-        static constexpr std::float32_t kp = 0.0005f;
+        // Control related
         std::float32_t target_pressure = 0.0_pa;
 
         void controlPressure(std::float32_t const& current_pressure) noexcept;
         void pressureProcessRelease(float const& p_output) noexcept;
 
         // EMA related
-        static constexpr std::float32_t kEmaAlpha = 0.05f;
+        static constexpr std::float32_t kEmaAlpha = 0.65f;
         std::float32_t prev_pressure   = 0.0_pa;
         bool is_first_filtering = true;
 
