@@ -28,6 +28,10 @@ class PneumaticHandler {
         PneumaticHandler& setCunPressure(std::float32_t const& pressure) noexcept;
         PneumaticHandler& setGuanPressure(std::float32_t const& pressure) noexcept;
         PneumaticHandler& setChiPressure(std::float32_t const& pressure) noexcept;
+        bool isStable() const noexcept;
+        bool cunIsStable() const noexcept;
+        bool guanIsStable() const noexcept;
+        bool chiIsStable() const noexcept;
 
     private:
         PneumaticHandler() noexcept;
@@ -42,6 +46,25 @@ class PneumaticHandler {
         PressureController cun_controller{kCunPumpPwmGpioPin};
         PressureController guan_controller{kGuanPumpPwmGpioPin};
         PressureController chi_controller{kChiPumpPwmGpioPin};
+
+        // Status Related
+        StaticQueue<bool, 1> cun_is_stable_queue{};
+        StaticQueue<bool, 1> guan_is_stable_queue{};
+        StaticQueue<bool, 1> chi_is_stable_queue{};
+
+        StaticQueueSet<
+            decltype(cun_is_stable_queue),
+            decltype(guan_is_stable_queue),
+            decltype(chi_is_stable_queue)
+        > queue_set {
+            cun_is_stable_queue,
+            guan_is_stable_queue,
+            chi_is_stable_queue
+        };
+
+        bool cun_is_stable  = true;
+        bool guan_is_stable = true;
+        bool chi_is_stable  = true;
 };
 
 } // namespace bps::sampler::pneumatic

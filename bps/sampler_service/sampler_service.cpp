@@ -60,6 +60,10 @@ void SamplerService::registerPulseValueQueue(QueueReference<PulseValue> const& q
     this->output_pulse_value_queue_ref = queue;
 }
 
+void SamplerService::registerMachineStatusQueue(QueueReference<MachineStatus> const& queue) noexcept {
+    this->output_machine_status_queue_ref = queue;
+}
+
 void SamplerService::taskLoop() noexcept {
     while (true) {
         updateCurrentStatus();

@@ -16,6 +16,7 @@ int main() {
     sampler_service.initialize();
 
     sampler_service.registerPulseValueQueue(ble_service.getPulseValueQueueRef());
+    sampler_service.registerMachineStatusQueue(ble_service.getMachineStatusQueueRef());
     ble_service.registerCommandQueue(sampler_service.getCommandQueueRef());
 
     ble_service.createTask(2);

@@ -34,12 +34,14 @@ class SamplerService {
         QueueReference<Command> getCommandQueueRef() const noexcept;
 
         // Register command and pressure base value queue
+        void registerMachineStatusQueue(QueueReference<MachineStatus> const& queue) noexcept;
         void registerPulseValueQueue(QueueReference<PulseValue> const& queue) noexcept;
 
     private:
         SamplerService();
 
         StaticQueue<Command, 3> command_queue{};
+        QueueReference<MachineStatus> output_machine_status_queue_ref{};
         QueueReference<PulseValue> output_pulse_value_queue_ref{};
 
         StaticQueueSet<

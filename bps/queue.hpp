@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <concepts>
 #include <expected>
+#include <numeric>
 
 namespace bps {
 
@@ -199,7 +200,7 @@ class StaticQueueSet {
         // Define the maximum item size for the queue set
         static constexpr std::size_t kMaxItemSize = std::max({ (sizeof(typename Qs::ContentType), ...) });
         // Check the total size of static storage can't acceed the size of UBaseType_t
-        static_assert((kCombinedLength * kMaxItemSize) > sizeof(UBaseType_t));
+        static_assert((kCombinedLength * kMaxItemSize) < std::numeric_limits<UBaseType_t>::max());
     public:
         StaticQueueSet(Qs&...  queues) {
             this->queue_set_handle = xQueueCreateSetStatic(

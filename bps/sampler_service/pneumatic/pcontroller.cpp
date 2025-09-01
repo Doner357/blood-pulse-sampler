@@ -72,6 +72,11 @@ QueueReference<std::float32_t> PressureController::getTargetPressureQueueRef() c
     return this->target_pressure_queue;
 }
 
+
+void PressureController::registerIsStableQueue(QueueReference<bool> const& queue) noexcept {
+    this->output_is_stable_queue_ref = queue;
+}
+
 PressureController& PressureController::setValvePwmPercentage(float const& percentage) noexcept {
     this->valve_pwm_level_percentage = percentage;
     std::uint16_t level = std::clamp(
@@ -156,6 +161,11 @@ void PressureController::pressureProcessRelease(float const& p_output) noexcept 
     xSemaphoreTake(this->valve_done_sem, portMAX_DELAY);
 }
 
+void PressureController::setStatusToStable() noexcept {
+    this->is_stable = true;
+    this->output_is_stable_queue_ref.send(true, pdTICKS_TO_MS(1));
+}
+
 void PressureController::taskLoop() noexcept {
     while (true) {
         std::expected<QueueHandle_t, std::nullptr_t> selected_handle{};
@@ -174,4 +184,4 @@ void PressureController::taskLoop() noexcept {
     }
 }
 
-} // bps::sampler::pneumatic
+} // namespace bps::sampler::pneumatic
