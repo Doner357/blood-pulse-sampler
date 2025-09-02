@@ -54,7 +54,7 @@ class GattServer {
         ) noexcept;
 
         GattServer& sendPulseValue(
-            std::uint64_t  const& timestemp,
+            std::uint64_t  const& timestamp,
             std::float32_t const& cun,
             std::float32_t const& guan,
             std::float32_t const& chi
@@ -117,7 +117,7 @@ class GattServer {
                 ) noexcept;
 
                 CustomCharacteristics& setPulseValue(
-                    std::uint64_t  const& timestemp,
+                    std::uint64_t  const& timestamp,
                     std::float32_t const& cun,
                     std::float32_t const& guan,
                     std::float32_t const& chi

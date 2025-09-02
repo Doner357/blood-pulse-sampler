@@ -68,7 +68,7 @@ void BleService::registerCommandQueue(QueueReference<Command> const& queue) noex
 void BleService::taskLoop() noexcept {
     while (true) {
         static std::expected<QueueHandle_t, std::nullptr_t> selected_handle{};
-        if ((selected_handle = this->queue_set.selectFromSet(pdMS_TO_TICKS(portMAX_DELAY)))) {
+        if ((selected_handle = this->queue_set.selectFromSet(portMAX_DELAY))) {
             if (selected_handle == this->machine_status_queue.getFreeRTOSQueueHandle()) {
                 static MachineStatus status{};
                 if (this->machine_status_queue.receive(status, pdMS_TO_TICKS(1000))) {

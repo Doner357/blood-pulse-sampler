@@ -39,7 +39,8 @@ enum class CommandType : std::uint8_t {
     eNull          = 0X00,
     eStopSampling  = 0x01,
     eStartSampling = 0x02,
-    eSetPressure   = 0x03
+    eSetPressure   = 0x03,
+    eReset         = 0x04
 };
 // Helper function, convert each byte type value to CommandType enum class
 // Return std::nullopt optional if there is no matched enum
@@ -143,7 +144,7 @@ struct Command {
 
 // Pack one pulse sample information
 struct PulseValue {
-    std::uint64_t  timestemp = 0;
+    std::uint64_t  timestamp = 0;
     std::float32_t cun  = 0.0_pa;
     std::float32_t guan = 0.0_pa;
     std::float32_t chi  = 0.0_pa;
