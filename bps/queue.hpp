@@ -45,13 +45,6 @@ class StaticQueue {
             configASSERT(this->queue_handle != nullptr);
         }
 
-        // Destructor to release the queue handle
-        ~StaticQueue() {
-            if (this->queue_handle != nullptr) {
-                vQueueDelete(this->queue_handle);
-            }
-        }
-
         StaticQueue(StaticQueue const&) = delete;
         StaticQueue& operator=(StaticQueue const&) = delete;
         StaticQueue(StaticQueue&& other) = delete;
@@ -230,7 +223,7 @@ class StaticQueueSet {
         StaticQueueSet& operator=(StaticQueueSet&& other) = delete;
     private:
         // Array for static storage
-        std::array<std::byte, kCombinedLength * kMaxItemSize> buffer{};
+        std::array<std::byte, kCombinedLength * sizeof(QueueSetMemberHandle_t)> buffer{};
         StaticQueue_t static_queue_cb{};
         QueueSetHandle_t queue_set_handle{nullptr};
 };

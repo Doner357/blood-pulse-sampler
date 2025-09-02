@@ -57,7 +57,7 @@ void PressureController::createTask(UBaseType_t const& priority) noexcept {
     xTaskCreate(
         freertos_task,
         this->task_name.data(),
-        1024,
+        2048,
         this,
         priority,
         &this->task_handle
@@ -120,10 +120,12 @@ void PressureController::controlPressure(std::float32_t const& current_pressure)
         this->is_stable = true;
         setValvePwmPercentage(0.0f);
         setPumpPwmPercentage(0.0f);
+        setStatusToStable();
     } else if (error >= 500 && error <= 1000) {
         this->is_stable = true;
         setValvePwmPercentage(1.0f);
         setPumpPwmPercentage(0.0f);
+        setStatusToStable();
     } else if (filtered_value < (this->target_pressure + this->target_pressure * 0.1)) {
         setValvePwmPercentage(1.0f);
         setPumpPwmPercentage(1.0f);
@@ -163,7 +165,8 @@ void PressureController::pressureProcessRelease(float const& p_output) noexcept 
 
 void PressureController::setStatusToStable() noexcept {
     this->is_stable = true;
-    this->output_is_stable_queue_ref.send(true, pdTICKS_TO_MS(1));
+    this->output_is_stable_queue_ref.send(true, 0);
+    BPS_LOG("%s is stable! Send signal to %p\n", this->task_name.data(), this->output_is_stable_queue_ref.getFreeRTOSQueueHandle());
 }
 
 void PressureController::taskLoop() noexcept {
@@ -179,6 +182,7 @@ void PressureController::taskLoop() noexcept {
             } else if (selected_handle == this->target_pressure_queue.getFreeRTOSQueueHandle()) {
                 this->target_pressure_queue.receive(this->target_pressure, pdTICKS_TO_MS(0));
                 this->is_stable = false;
+                this->is_first_filtering = true; 
             }
         }
     }

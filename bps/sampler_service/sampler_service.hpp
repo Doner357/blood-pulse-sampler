@@ -44,12 +44,6 @@ class SamplerService {
         QueueReference<MachineStatus> output_machine_status_queue_ref{};
         QueueReference<PulseValue> output_pulse_value_queue_ref{};
 
-        StaticQueueSet<
-            decltype(command_queue)
-        > queue_set = makeQueueSet(
-            this->command_queue
-        );
-
         pneumatic::PneumaticHandler& pneumatic_handler;
 
         // FreeRTOS task
@@ -59,11 +53,10 @@ class SamplerService {
         void updateCurrentStatus() noexcept;
         void processCurrentStatus() noexcept;
 
-        // Status storage
-        static constexpr std::size_t kNeedSamples = 2000;
-        Command current_command{};
-        CommandType prev_command_type;
-        std::size_t remain_samples = 0;
+        // State machine related
+        Command received_command{};
+        MachineStatus current_status = MachineStatus::eIdle;
+        bool need_to_set_pressure = false;
 };
 
 } // namespace bps::sampler

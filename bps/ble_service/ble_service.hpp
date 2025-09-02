@@ -44,14 +44,14 @@ class BleService {
 
         QueueReference<Command> output_command_queue_ref{};
         StaticQueue<MachineStatus, 3> machine_status_queue{};
-        StaticQueue<PulseValue, 3> pulse_value_queue{};
+        StaticQueue<PulseValue, 1024> pulse_value_queue{};
 
         StaticQueueSet<
             decltype(machine_status_queue),
             decltype(pulse_value_queue)
         > queue_set{
-            this->machine_status_queue,
-            this->pulse_value_queue
+            machine_status_queue,
+            pulse_value_queue
         };
 
         // FreeRTOS task

@@ -72,8 +72,8 @@ class PressureController {
             decltype(trigger_pack_queue),
             decltype(target_pressure_queue)
         > queue_set {
-            this->trigger_pack_queue,
-            this->target_pressure_queue
+            trigger_pack_queue,
+            target_pressure_queue
         };
         
         // Set the output level percentage for pump control, the range of percentage is [0.0f, 1.0f]

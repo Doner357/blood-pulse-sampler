@@ -258,10 +258,6 @@ void GattServer::packetHandler(
 
     std::uint8_t event_type = hci_event_packet_get_type(packet);
     bd_addr_t null_addr = {0};
-    
-    Command reset_command{};
-    reset_command.command_type = CommandType::eSetPressure;
-    reset_command.content.pressure_settings = { 0.0_pa, 0.0_pa, 0.0_pa };
 
     switch (event_type) {
     case BTSTACK_EVENT_STATE:
@@ -295,7 +291,7 @@ void GattServer::packetHandler(
         this->hci_con_handle = HCI_CON_HANDLE_INVALID;
         this->characteristics = CustomCharacteristics{};
         if (this->command_callback) {
-            this->command_callback(this->command_callback_context, reset_command);
+            this->command_callback(this->command_callback_context, Command{ CommandType::eReset, {} });
         }
         gap_advertisements_enable(1);
         break;

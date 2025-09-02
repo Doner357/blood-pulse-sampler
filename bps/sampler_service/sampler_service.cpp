@@ -2,6 +2,7 @@
 
 #include "pneumatic/psensors.hpp"
 #include "pneumatic/phandler.hpp"
+#include "logger.hpp"
 
 namespace bps::sampler {
 
@@ -43,7 +44,7 @@ bool SamplerService::createTask(UBaseType_t const& priority) noexcept {
     return xTaskCreate(
         freertos_task,
         "Pneumatic Service",
-        2048,
+        4096,
         this,
         priority,
         &this->task_handle
@@ -73,60 +74,81 @@ void SamplerService::taskLoop() noexcept {
 }
 
 void SamplerService::updateCurrentStatus() noexcept {
-    static std::expected<QueueHandle_t, std::nullptr_t> selected_handle{};
-    if ((selected_handle = this->queue_set.selectFromSet(pdMS_TO_TICKS(0)))) {
-        if (selected_handle == this->command_queue.getFreeRTOSQueueHandle()) {
-            static Command new_command{};
-            this->command_queue.receive(new_command, pdMS_TO_TICKS(0));
-            if (
-                new_command.command_type == CommandType::eStartSampling &&
-                this->current_command.command_type != CommandType::eStartSampling
-            ) {
-                this->remain_samples = kNeedSamples;
-            } else if (
-                new_command.command_type == CommandType::eStopSampling &&
-                this->current_command.command_type == CommandType::eStartSampling
-            ) {
-                this->remain_samples = 0;
+    if (this->command_queue.receive(this->received_command, 0)) {
+        switch (this->received_command.command_type) {
+        case CommandType::eStopSampling:
+            if (this->current_status == MachineStatus::eSampling) {
+                this->current_status = MachineStatus::eIdle;
+                BPS_LOG("Set BPS status to: Idle\n");
             }
-            this->prev_command_type = this->current_command.command_type;
-            this->current_command = new_command;
+            break;
+        case CommandType::eStartSampling:
+            if (this->current_status == MachineStatus::eIdle) {
+                this->current_status = MachineStatus::eSampling;
+                BPS_LOG("Set BPS status to: Sampling\n");
+            }
+            break;
+        case CommandType::eSetPressure:
+            if (this->current_status != MachineStatus::eSampling) {
+                this->current_status = MachineStatus::eSettingPressure;
+                this->need_to_set_pressure = true;
+                BPS_LOG("Set BPS status to: SettingPressure\n");
+            }
+            break;
+        case CommandType::eReset:
+            this->received_command = Command{
+                .command_type = CommandType::eSetPressure,
+                .content = {
+                    .pressure_settings = {
+                        .cun = 0.0_pa,
+                        .guan = 0.0_pa,
+                        .chi = 0.0_pa
+                    }
+                }
+            };
+            this->current_status = MachineStatus::eSettingPressure;
+            this->need_to_set_pressure = true;
+            BPS_LOG("Set BPS status to: SettingPressure (for Reset)\n");
+            break;
+        default:
+            break;
         }
     }
+    this->output_machine_status_queue_ref.send(this->current_status, pdTICKS_TO_MS(1));
 }
 
 void SamplerService::processCurrentStatus() noexcept {
-    static std::expected<bps::PulseValue, bps::Error<int>> value{};
-    value = pneumatic::PressureSensors::getInstance().readPressureSensorPipelinedBlocking();
-    bps::Command::Content content{};
-    if (value) {
-        this->pneumatic_handler.trigger(value.value());
-    }
-    switch (this->current_command.command_type) {
-    case CommandType::eStopSampling:
-        /* TODO: Stopping air pumps and open the valves */
-        break;
-    case CommandType::eStartSampling:
-        if (this->output_pulse_value_queue_ref.isValid() && value.has_value()) {
-            output_pulse_value_queue_ref.send(value.value(), pdMS_TO_TICKS(0));
-        }
-        if ((this->remain_samples) == 0) {
-            this->current_command.command_type = CommandType::eStopSampling;
-        }
-        break;
-    case CommandType::eSetPressure:
-        content = current_command.content;
-        this->pneumatic_handler.setCunPressure(content.pressure_settings.cun);
-        this->pneumatic_handler.setGuanPressure(content.pressure_settings.guan);
-        this->pneumatic_handler.setChiPressure(content.pressure_settings.chi);
-        this->current_command.command_type = this->prev_command_type;
-        break;
-    case CommandType::eNull:
-        vTaskDelay(pdMS_TO_TICKS(10));
-        break;
-    default:
-        vTaskDelay(pdMS_TO_TICKS(10));
-        break;
+    std::expected<bps::PulseValue, bps::Error<int>> value{};
+    switch (this->current_status) {
+        case MachineStatus::eIdle:
+            vTaskDelay(10);
+            break;
+        case MachineStatus::eSampling:
+            value = pneumatic::PressureSensors::getInstance().readPressureSensorPipelinedBlocking();
+            if (value) {
+                this->output_pulse_value_queue_ref.send(value.value(), 0);
+            }
+            break;
+        case MachineStatus::eSettingPressure:
+            if (this->need_to_set_pressure) {
+                this->pneumatic_handler.setCunPressure(this->received_command.content.pressure_settings.cun)
+                                       .setGuanPressure(this->received_command.content.pressure_settings.guan)
+                                       .setChiPressure(this->received_command.content.pressure_settings.chi);
+                this->need_to_set_pressure = false;
+                BPS_LOG("Set BPS status to received target\n");
+            } else if (this->pneumatic_handler.isStable()) {
+                this->current_status = MachineStatus::eIdle;
+                BPS_LOG("Set machine status to: Idle\n");
+            } else {
+                value = pneumatic::PressureSensors::getInstance().readPressureSensorPipelinedBlocking();
+                if (value) {
+                    this->pneumatic_handler.trigger(value.value());
+                }
+            }
+            break;
+        default:
+            vTaskDelay(10);
+            break;
     }
 }
 
