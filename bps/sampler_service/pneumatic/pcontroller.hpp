@@ -29,6 +29,8 @@ class PressureController {
 
         QueueReference<TriggerPack> getTriggerPackQueueRef() const noexcept;
         QueueReference<std::float32_t> getTargetPressureQueueRef() const noexcept;
+
+        void registerIsStableQueue(QueueReference<bool> const& queue) noexcept;
         
     private:
         // Status
@@ -60,14 +62,18 @@ class PressureController {
 
         StaticQueue<TriggerPack, 512> trigger_pack_queue{};
         StaticQueue<std::float32_t, 3> target_pressure_queue{};
+        QueueReference<bool> output_is_stable_queue_ref{};
+
+        // Status
+        void setStatusToStable() noexcept;
 
         // Task related
         StaticQueueSet<
             decltype(trigger_pack_queue),
             decltype(target_pressure_queue)
         > queue_set {
-            this->trigger_pack_queue,
-            this->target_pressure_queue
+            trigger_pack_queue,
+            target_pressure_queue
         };
         
         // Set the output level percentage for pump control, the range of percentage is [0.0f, 1.0f]

@@ -290,6 +290,9 @@ void GattServer::packetHandler(
         /* Log handling */
         this->hci_con_handle = HCI_CON_HANDLE_INVALID;
         this->characteristics = CustomCharacteristics{};
+        if (this->command_callback) {
+            this->command_callback(this->command_callback_context, Command{ CommandType::eReset, {} });
+        }
         gap_advertisements_enable(1);
         break;
 

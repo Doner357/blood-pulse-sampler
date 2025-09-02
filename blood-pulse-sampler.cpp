@@ -6,7 +6,7 @@
 
 int main() {
     bps::logger::initializeLogger();
-    
+    sleep_ms(1000);
     BPS_LOG("Start BPS!\n");
 
     auto& ble_service = bps::ble::BleService::getInstance();
@@ -16,6 +16,7 @@ int main() {
     sampler_service.initialize();
 
     sampler_service.registerPulseValueQueue(ble_service.getPulseValueQueueRef());
+    sampler_service.registerMachineStatusQueue(ble_service.getMachineStatusQueueRef());
     ble_service.registerCommandQueue(sampler_service.getCommandQueueRef());
 
     ble_service.createTask(2);

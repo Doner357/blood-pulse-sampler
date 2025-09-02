@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <concepts>
 #include <expected>
+#include <numeric>
 
 namespace bps {
 
@@ -42,13 +43,6 @@ class StaticQueue {
                 &this->static_queue_cb
             );
             configASSERT(this->queue_handle != nullptr);
-        }
-
-        // Destructor to release the queue handle
-        ~StaticQueue() {
-            if (this->queue_handle != nullptr) {
-                vQueueDelete(this->queue_handle);
-            }
         }
 
         StaticQueue(StaticQueue const&) = delete;
@@ -199,7 +193,7 @@ class StaticQueueSet {
         // Define the maximum item size for the queue set
         static constexpr std::size_t kMaxItemSize = std::max({ (sizeof(typename Qs::ContentType), ...) });
         // Check the total size of static storage can't acceed the size of UBaseType_t
-        static_assert((kCombinedLength * kMaxItemSize) > sizeof(UBaseType_t));
+        static_assert((kCombinedLength * kMaxItemSize) < std::numeric_limits<UBaseType_t>::max());
     public:
         StaticQueueSet(Qs&...  queues) {
             this->queue_set_handle = xQueueCreateSetStatic(
@@ -229,7 +223,7 @@ class StaticQueueSet {
         StaticQueueSet& operator=(StaticQueueSet&& other) = delete;
     private:
         // Array for static storage
-        std::array<std::byte, kCombinedLength * kMaxItemSize> buffer{};
+        std::array<std::byte, kCombinedLength * sizeof(QueueSetMemberHandle_t)> buffer{};
         StaticQueue_t static_queue_cb{};
         QueueSetHandle_t queue_set_handle{nullptr};
 };
