@@ -16,5 +16,6 @@ target_link_libraries(bps_ble_service
         compile_options
     PUBLIC
         bps_common
+        bps_logger
         bps_gatt_server
 )

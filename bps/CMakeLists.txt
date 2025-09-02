@@ -4,14 +4,23 @@ cmake_minimum_required(VERSION 3.13)
 add_library(bps_common INTERFACE)
 
 target_include_directories(bps_common
-INTERFACE
-    ${CMAKE_CURRENT_LIST_DIR}
+    INTERFACE
+        ${CMAKE_CURRENT_LIST_DIR}
 )
 
+target_link_libraries(bps_common
+    INTERFACE
+        freertos_kernel
+)
+
+add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/logger")
 add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/ble_service")
+add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/sampler_service")
 
 add_library(bps_service STATIC)
 target_link_libraries(bps_service
     PUBLIC
+        bps_logger
         bps_ble_service
+        bps_sampler
 )

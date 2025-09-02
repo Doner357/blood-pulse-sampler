@@ -12,6 +12,7 @@
 #include <expected>
 #include <string_view>
 
+#include "common.hpp"
 #include "utils.hpp"
 #include "gatt_database.hpp"
 
@@ -34,81 +35,12 @@ constexpr uint16_t adv_int_min = 800;
 constexpr uint16_t adv_int_max = 800;
 constexpr std::uint8_t adv_type = 0;
 
-} // anymous namespace
+} // anonymous namespace
 
 // ================================================================================================
 // == GattServer::CustomCaracteristics                                                           ==
 // ================================================================================================
-GattServer::CustomCharacteristics::CustomCharacteristics() : 
-    action({std::byte{0}}),
-    pressure_base_value({std::byte{0}})
-{
-    setMachineStatus(MachineStatus::eNull);
-    setMachineStatusClientConfiguration(0);
-    setPulseValueSet(0.0, 0.0_pa, 0.0_pa, 0.0_pa);
-    setPulseValueSetClientConfiguration(0);
-}
-
-
-GattServer::CustomCharacteristics& GattServer::CustomCharacteristics::setAction(
-    Action const& act
-) noexcept {
-    auto packed_action = 
-        std::byte{(std::byte{std::to_underlying(act.action_type)} & std::byte{0x03}) << 0} |
-        std::byte{(std::byte{std::to_underlying(act.cun)} & std::byte{0x0c}) << 2} |
-        std::byte{(std::byte{std::to_underlying(act.guan)} & std::byte{0x30}) << 4} |
-        std::byte{(std::byte{std::to_underlying(act.chi)} & std::byte{0xc0}) << 6};
-
-    this->action[0] = packed_action;
-    return *this;
-}
-
-GattServer::CustomCharacteristics& GattServer::CustomCharacteristics::setAction(
-    ActionType const& action_type,
-    PressureType const& cun,
-    PressureType const& guan,
-    PressureType const& chi
-) noexcept {
-    return setAction(
-        Action {
-            .action_type = action_type,
-            .cun = cun,
-            .guan = guan,
-            .chi = chi
-        }
-    );
-}
-
-GattServer::CustomCharacteristics& GattServer::CustomCharacteristics::setPressureBaseValue(
-    PressureBaseValue const& value
-) noexcept {
-    std::size_t offset = 0;
-    
-    writeAsLittleEndian(value.floating, &this->pressure_base_value[offset]);
-    offset += sizeof(value.floating);
-    
-    writeAsLittleEndian(value.middle, &this->pressure_base_value[offset]);
-    offset += sizeof(value.middle);
-    
-    writeAsLittleEndian(value.deep, &this->pressure_base_value[offset]);
-    offset += sizeof(value.deep);
-
-    return *this;
-}
-
-GattServer::CustomCharacteristics& GattServer::CustomCharacteristics::setPressureBaseValue(
-    std::float32_t floating,
-    std::float32_t middle,
-    std::float32_t deep
-) noexcept {
-    return setPressureBaseValue(
-        PressureBaseValue {
-            .floating = floating,
-            .middle = middle,
-            .deep = deep
-        }
-    );
-}
+GattServer::CustomCharacteristics::CustomCharacteristics() {}
 
 GattServer::CustomCharacteristics& GattServer::CustomCharacteristics::setMachineStatus(
     MachineStatus const& status
@@ -124,34 +56,34 @@ GattServer::CustomCharacteristics& GattServer::CustomCharacteristics::setMachine
     return *this;
 }
 
-GattServer::CustomCharacteristics& GattServer::CustomCharacteristics::setPulseValueSet(
-    PulseValueSet const& value_set
+GattServer::CustomCharacteristics& GattServer::CustomCharacteristics::setPulseValue(
+    PulseValue const& value
 ) noexcept {
     std::size_t offset = 0;
 
-    writeAsLittleEndian(value_set.timestemp, &this->pulse_value_set[offset]);
-    offset += sizeof(value_set.timestemp);
+    writeAsLittleEndian(value.timestamp, &this->pulse_value[offset]);
+    offset += sizeof(value.timestamp);
 
-    writeAsLittleEndian(value_set.cun, &this->pulse_value_set[offset]);
-    offset += sizeof(value_set.cun);
+    writeAsLittleEndian(value.cun, &this->pulse_value[offset]);
+    offset += sizeof(value.cun);
 
-    writeAsLittleEndian(value_set.guan, &this->pulse_value_set[offset]);
-    offset += sizeof(value_set.guan);
+    writeAsLittleEndian(value.guan, &this->pulse_value[offset]);
+    offset += sizeof(value.guan);
 
-    writeAsLittleEndian(value_set.chi, &this->pulse_value_set[offset]);
+    writeAsLittleEndian(value.chi, &this->pulse_value[offset]);
 
     return *this;
 }
 
-GattServer::CustomCharacteristics& GattServer::CustomCharacteristics::setPulseValueSet(
-    std::float64_t const& timestemp,
+GattServer::CustomCharacteristics& GattServer::CustomCharacteristics::setPulseValue(
+    std::uint64_t  const& timestamp,
     std::float32_t const& cun,
     std::float32_t const& guan,
     std::float32_t const& chi
 ) noexcept {
-    return setPulseValueSet(
-        PulseValueSet{
-            .timestemp = timestemp,
+    return setPulseValue(
+        PulseValue{
+            .timestamp = timestamp,
             .cun       = cun,
             .guan      = guan,
             .chi       = chi
@@ -159,44 +91,40 @@ GattServer::CustomCharacteristics& GattServer::CustomCharacteristics::setPulseVa
     );
 }
 
-GattServer::CustomCharacteristics& GattServer::CustomCharacteristics::setPulseValueSetClientConfiguration(
+GattServer::CustomCharacteristics& GattServer::CustomCharacteristics::setPulseValueClientConfiguration(
     std::uint16_t configuration
 ) noexcept {
-    this->pulse_value_set_client_configuration = configuration;
+    this->pulse_value_client_configuration = configuration;
     return *this;
 }
 
 // Getters
-std::expected<Action, Error<std::byte>> GattServer::CustomCharacteristics::getAction() const noexcept {
-    using mask = std::byte;
-    auto action_type   = toActionType((this->action[0] & mask{0x03}) >> 0);
-    auto cun_pressure  = toPressureType((this->action[0] & mask{0x0c}) >> 2);
-    auto guan_pressure = toPressureType((this->action[0] & mask{0x30}) >> 4);
-    auto chi_pressure  = toPressureType((this->action[0] & mask{0xc0}) >> 6);
-    
-    if (!action_type || !cun_pressure || !guan_pressure || !chi_pressure) {
-        return std::unexpected(
-            Error{ ErrorType::eInvalidValue, this->action[0] }
-        );
+std::expected<Command, Error<std::byte>> GattServer::CustomCharacteristics::getCommand() const noexcept {
+    auto command_type = toCommandType(this->command[0]);
+    if (!command_type) {
+        return std::unexpected(Error<std::byte>{ ErrorType::eInvalidValue, this->command[0] });
     }
 
-    return Action{ action_type.value(), cun_pressure.value(), guan_pressure.value(), chi_pressure.value() };
-}
+    Command command_pack{};
+    command_pack.command_type = command_type.value();
+    switch(command_pack.command_type) {
+        case CommandType::eNull:
+            break;
+        case CommandType::eStopSampling:
+            break;
+        case CommandType::eStartSampling:
+            readAsNativeEndian(&this->command[1], command_pack.content.sample_time_ms);
+            break;
+        case CommandType::eSetPressure:
+            readAsNativeEndian(&this->command[1 + 0 * sizeof(std::float32_t)], command_pack.content.pressure_settings.cun);
+            readAsNativeEndian(&this->command[1 + 1 * sizeof(std::float32_t)], command_pack.content.pressure_settings.guan);
+            readAsNativeEndian(&this->command[1 + 2 * sizeof(std::float32_t)], command_pack.content.pressure_settings.chi);
+            break;
+        default:
+            break;
+    }
 
-PressureBaseValue GattServer::CustomCharacteristics::getPressureBaseValue() const noexcept {
-    PressureBaseValue value{};
-
-    std::size_t offset = 0;
-    
-    readAsNativeEndian(&this->pressure_base_value[offset], value.floating);
-    offset += sizeof(value.floating);
-
-    readAsNativeEndian(&this->pressure_base_value[offset], value.middle);
-    offset += sizeof(value.middle);
-
-    readAsNativeEndian(&this->pressure_base_value[offset], value.deep);
-    
-    return value;
+    return command_pack;
 }
 
 std::expected<MachineStatus, Error<std::byte>> GattServer::CustomCharacteristics::getMachineStatus() const noexcept {
@@ -213,27 +141,27 @@ std::uint16_t GattServer::CustomCharacteristics::getMachineStatusClientConfigura
     return this->machine_status_client_configuration;
 }
 
-PulseValueSet GattServer::CustomCharacteristics::getPulseValueSet() const noexcept {
-    PulseValueSet value_set{};
+PulseValue GattServer::CustomCharacteristics::getPulseValue() const noexcept {
+    PulseValue value{};
 
     std::size_t offset = 0;
 
-    readAsNativeEndian(&this->pulse_value_set[offset], value_set.timestemp);
-    offset += sizeof(value_set.timestemp);
+    readAsNativeEndian(&this->pulse_value[offset], value.timestamp);
+    offset += sizeof(value.timestamp);
 
-    readAsNativeEndian(&this->pulse_value_set[offset], value_set.cun);
-    offset += sizeof(value_set.cun);
+    readAsNativeEndian(&this->pulse_value[offset], value.cun);
+    offset += sizeof(value.cun);
 
-    readAsNativeEndian(&this->pulse_value_set[offset], value_set.guan);
-    offset += sizeof(value_set.guan);
+    readAsNativeEndian(&this->pulse_value[offset], value.guan);
+    offset += sizeof(value.guan);
 
-    readAsNativeEndian(&this->pulse_value_set[offset], value_set.chi);
+    readAsNativeEndian(&this->pulse_value[offset], value.chi);
     
-    return value_set;
+    return value;
 }
 
-std::uint16_t GattServer::CustomCharacteristics::getPulseValueSetClientConfiguration() const noexcept {
-    return this->pulse_value_set_client_configuration;
+std::uint16_t GattServer::CustomCharacteristics::getPulseValueClientConfiguration() const noexcept {
+    return this->pulse_value_client_configuration;
 }
 
 // ================================================================================================
@@ -242,8 +170,33 @@ std::uint16_t GattServer::CustomCharacteristics::getPulseValueSetClientConfigura
 GattServer::GattServer() : hci_con_handle(HCI_CON_HANDLE_INVALID) {
     this->service_handler.start_handle = Att::Handle::CustomCharacteristic::kStart;
     this->service_handler.end_handle = Att::Handle::CustomCharacteristic::kEnd;
-    this->service_handler.read_callback = &GattServer::attReadCallbackTrampoline;
-    this->service_handler.write_callback = &GattServer::attWriteCallbackTrampoline;
+
+    static att_read_callback_t att_read_callback = 
+        [](
+            hci_con_handle_t con_handle,
+            uint16_t attribute_handle,
+            uint16_t offset,
+            uint8_t* buffer,
+            uint16_t buffer_size
+        ) noexcept {
+            GattServer& gatt_server = GattServer::getInstance();
+            return gatt_server.attReadCallback(con_handle, attribute_handle, offset, buffer, buffer_size);
+        };
+    this->service_handler.read_callback = att_read_callback;
+    
+    static att_write_callback_t att_write_callback =
+        [](
+            hci_con_handle_t con_handle,
+            uint16_t attribute_handle,
+            uint16_t transaction_mode,
+            uint16_t offset,
+            unsigned char *buffer,
+            uint16_t buffer_size
+        ) noexcept {
+            GattServer& gatt_server = GattServer::getInstance();
+            return gatt_server.attWriteCallback(con_handle, attribute_handle, transaction_mode, offset, buffer, buffer_size);
+        };
+    this->service_handler.write_callback = att_write_callback;
 }
 
 void GattServer::initialize() noexcept {
@@ -261,17 +214,27 @@ void GattServer::initialize() noexcept {
     att_server_register_service_handler(&this->service_handler);
     
     // inform about BTstack state
-    this->hci_event_callback_registration.callback = &GattServer::packetHandler;
+    static btstack_packet_handler_t packet_handler =
+        [](
+            uint8_t packet_type,
+            uint16_t channel,
+            uint8_t* packet,
+            uint16_t size
+        ) noexcept {
+            GattServer& instance = GattServer::getInstance();
+            instance.packetHandler(packet_type, channel, packet, size);
+        };
+    this->hci_event_callback_registration.callback = packet_handler;
     hci_add_event_handler(&this->hci_event_callback_registration);
 
     // register for ATT event
-    att_server_register_packet_handler(&GattServer::packetHandler);
+    att_server_register_packet_handler(packet_handler);
 }
 
 std::expected<int, Error<int>> GattServer::on() noexcept {
     int status = hci_power_control(HCI_POWER_ON);
     if(status != 0) {
-        return std::unexpected(Error{ErrorType::eFailedOperation, status});
+        return std::unexpected(Error{ ErrorType::eFailedOperation, status });
     }
     return status;
 }
@@ -279,22 +242,12 @@ std::expected<int, Error<int>> GattServer::on() noexcept {
 std::expected<int, Error<int>> GattServer::off() noexcept {
     int status = hci_power_control(HCI_POWER_OFF);
     if(status != 0) {
-        return std::unexpected(Error{ErrorType::eFailedOperation, status});
+        return std::unexpected(Error{ ErrorType::eFailedOperation, status });
     }
     return status;
 }
 
-void GattServer::packetHandler (
-    uint8_t packet_type,
-    uint16_t channel,
-    uint8_t* packet,
-    uint16_t size
-) {
-    GattServer& instance = GattServer::getInstance();
-    instance.handleEvent(packet_type, channel, packet, size);
-}
-
-void GattServer::handleEvent(
+void GattServer::packetHandler(
     uint8_t packet_type,
     [[maybe_unused]] uint16_t channel,
     uint8_t* packet,
@@ -337,6 +290,9 @@ void GattServer::handleEvent(
         /* Log handling */
         this->hci_con_handle = HCI_CON_HANDLE_INVALID;
         this->characteristics = CustomCharacteristics{};
+        if (this->command_callback) {
+            this->command_callback(this->command_callback_context, Command{ CommandType::eReset, {} });
+        }
         gap_advertisements_enable(1);
         break;
 
@@ -350,13 +306,13 @@ void GattServer::handleEvent(
                 this->characteristics.getMachineStatusArray().size()
             );
             att_server_request_can_send_now_event(this->hci_con_handle);
-        } else if (this->notification_pending_pulse_value_set) {
-            this->notification_pending_pulse_value_set = false;
+        } else if (this->notification_pending_pulse_value) {
+            this->notification_pending_pulse_value = false;
             att_server_notify(
                 this->hci_con_handle,
-                Att::Handle::CustomCharacteristic::PulseDataSet::kValue,
-                reinterpret_cast<uint8_t*>(this->characteristics.getPulseValueSetArray().data()),
-                this->characteristics.getPulseValueSetArray().size()
+                Att::Handle::CustomCharacteristic::PulseValue::kValue,
+                reinterpret_cast<uint8_t*>(this->characteristics.getPulseValueArray().data()),
+                this->characteristics.getPulseValueArray().size()
             );
             att_server_request_can_send_now_event(this->hci_con_handle);
         }
@@ -368,7 +324,7 @@ void GattServer::handleEvent(
 }
 
 // Setters, only allow to set Writable data
-GattServer& GattServer::setMachineStatus(
+GattServer& GattServer::sendMachineStatus(
     MachineStatus const& status
 ) noexcept {
     this->characteristics.setMachineStatus(status);
@@ -381,28 +337,28 @@ GattServer& GattServer::setMachineStatus(
     return *this;
 }
 
-GattServer& GattServer::setPulseValueSet(
-    PulseValueSet const& value_set
+GattServer& GattServer::sendPulseValue(
+    PulseValue const& value
 ) noexcept {
-    this->characteristics.setPulseValueSet(value_set);
-    if (this->characteristics.getPulseValueSetClientConfiguration() == 
+    this->characteristics.setPulseValue(value);
+    if (this->characteristics.getPulseValueClientConfiguration() == 
     GATT_CLIENT_CHARACTERISTICS_CONFIGURATION_NOTIFICATION &&
     (this->hci_con_handle != HCI_CON_HANDLE_INVALID)) {
-        this->notification_pending_pulse_value_set = true;
+        this->notification_pending_pulse_value = true;
         att_server_request_can_send_now_event(this->hci_con_handle);
     }
     return *this;
 }
 
-GattServer& GattServer::setPulseValueSet(
-    std::float64_t const& timestemp,
+GattServer& GattServer::sendPulseValue(
+    std::uint64_t  const& timestamp,
     std::float32_t const& cun,
     std::float32_t const& guan,
     std::float32_t const& chi
 ) noexcept {
-    return this->setPulseValueSet(
-        PulseValueSet {
-            .timestemp = timestemp,
+    return this->sendPulseValue(
+        PulseValue {
+            .timestamp = timestamp,
             .cun = cun,
             .guan = guan,
             .chi = chi
@@ -410,37 +366,9 @@ GattServer& GattServer::setPulseValueSet(
     );
 }
 
-void GattServer::registerActionCallback(actionCallback_t callback, void* context) noexcept {
-    this->action_callback = callback;
-    this->action_callback_context = context;
-}
-
-void GattServer::registerPressureBaseValueCallback(pressureBaseValueCallback_t callback, void* context) noexcept {
-    this->pressure_base_value_callback = callback;
-    this->pressure_base_value_context = context;
-}
-
-uint16_t GattServer::attReadCallbackTrampoline(
-    hci_con_handle_t con_handle,
-    uint16_t attribute_handle,
-    uint16_t offset,
-    uint8_t* buffer,
-    uint16_t buffer_size
-) noexcept {
-    GattServer& gatt_server = GattServer::getInstance();
-    return gatt_server.attReadCallback(con_handle, attribute_handle, offset, buffer, buffer_size);
-}
-
-int GattServer::attWriteCallbackTrampoline(
-    hci_con_handle_t con_handle,
-    uint16_t attribute_handle,
-    uint16_t transaction_mode,
-    uint16_t offset,
-    unsigned char *buffer,
-    uint16_t buffer_size
-) noexcept {
-    GattServer& gatt_server = GattServer::getInstance();
-    return gatt_server.attWriteCallback(con_handle, attribute_handle, transaction_mode, offset, buffer, buffer_size);
+void GattServer::registerCommandCallback(commandCallback_t callback, void* context) noexcept {
+    this->command_callback = callback;
+    this->command_callback_context = context;
 }
 
 // Real att read / write callback
@@ -452,19 +380,10 @@ uint16_t GattServer::attReadCallback(
     uint16_t const& buffer_size
 ) noexcept {
     switch (attribute_handle) {
-    case Att::Handle::CustomCharacteristic::Action::kUserDescription:
+    case Att::Handle::CustomCharacteristic::Command::kUserDescription:
         return att_read_callback_handle_blob(
-            reinterpret_cast<uint8_t const*>(CustomCharacteristics::action_description.data()),
-            CustomCharacteristics::action_description.size(),
-            offset,
-            buffer,
-            buffer_size
-        );
-
-    case Att::Handle::CustomCharacteristic::PressureBaseValue::kUserDescription:
-        return att_read_callback_handle_blob(
-            reinterpret_cast<uint8_t const*>(CustomCharacteristics::pressure_base_value_description.data()),
-            CustomCharacteristics::pressure_base_value_description.size(),
+            reinterpret_cast<uint8_t const*>(CustomCharacteristics::command_description.data()),
+            CustomCharacteristics::command_description.size(),
             offset,
             buffer,
             buffer_size
@@ -496,27 +415,27 @@ uint16_t GattServer::attReadCallback(
             buffer_size
         );
 
-    case Att::Handle::CustomCharacteristic::PulseDataSet::kValue:
+    case Att::Handle::CustomCharacteristic::PulseValue::kValue:
         return att_read_callback_handle_blob(
-            reinterpret_cast<uint8_t const*>(this->characteristics.getPulseValueSetArray().data()),
-            this->characteristics.getPulseValueSetArray().size(),
+            reinterpret_cast<uint8_t const*>(this->characteristics.getPulseValueArray().data()),
+            this->characteristics.getPulseValueArray().size(),
             offset,
             buffer,
             buffer_size
         );
 
-    case Att::Handle::CustomCharacteristic::PulseDataSet::kClientConfiguration:
+    case Att::Handle::CustomCharacteristic::PulseValue::kClientConfiguration:
         return att_read_callback_handle_little_endian_16(
-            this->characteristics.getPulseValueSetClientConfiguration(),
+            this->characteristics.getPulseValueClientConfiguration(),
             offset,
             buffer,
             buffer_size
         );
 
-    case Att::Handle::CustomCharacteristic::PulseDataSet::kUserDescription:
+    case Att::Handle::CustomCharacteristic::PulseValue::kUserDescription:
         return att_read_callback_handle_blob(
-            reinterpret_cast<uint8_t const*>(CustomCharacteristics::pulse_value_set_description.data()),
-            CustomCharacteristics::pulse_value_set_description.size(),
+            reinterpret_cast<uint8_t const*>(CustomCharacteristics::pulse_value_description.data()),
+            CustomCharacteristics::pulse_value_description.size(),
             offset,
             buffer,
             buffer_size
@@ -538,27 +457,15 @@ int GattServer::attWriteCallback(
     [[maybe_unused]] uint16_t const& buffer_size
 ) noexcept {
     switch (attribute_handle) {
-    case Att::Handle::CustomCharacteristic::Action::kValue:
+    case Att::Handle::CustomCharacteristic::Command::kValue:
         std::memcpy(
-            this->characteristics.getActionArray().data(),
+            this->characteristics.getCommandArray().data(),
             buffer,
-            std::min(static_cast<std::size_t>(buffer_size), this->characteristics.getActionArray().size())
+            std::min(static_cast<std::size_t>(buffer_size), this->characteristics.getCommandArray().size())
         );
-        if (this->action_callback) {
-            auto action = this->characteristics.getAction();
-            this->action_callback(this->action_callback_context, action);
-        }
-        break;
-        
-    case Att::Handle::CustomCharacteristic::PressureBaseValue::kValue:
-        std::memcpy(
-            this->characteristics.getPressureBaseValueArray().data(),
-            buffer,
-            std::min(static_cast<std::size_t>(buffer_size), this->characteristics.getPressureBaseValueArray().size())
-        );
-        if (this->pressure_base_value_callback) {
-            auto pressure_base_value = this->characteristics.getPressureBaseValue();
-            this->pressure_base_value_callback(this->pressure_base_value_context, pressure_base_value);
+        if (this->command_callback) {
+            auto command = this->characteristics.getCommand();
+            this->command_callback(this->command_callback_context, command);
         }
         break;
 
@@ -566,8 +473,8 @@ int GattServer::attWriteCallback(
         this->characteristics.setMachineStatusClientConfiguration(little_endian_read_16(buffer, 0));
         break;
         
-    case Att::Handle::CustomCharacteristic::PulseDataSet::kClientConfiguration:
-        this->characteristics.setPulseValueSetClientConfiguration(little_endian_read_16(buffer, 0));
+    case Att::Handle::CustomCharacteristic::PulseValue::kClientConfiguration:
+        this->characteristics.setPulseValueClientConfiguration(little_endian_read_16(buffer, 0));
         break;
         
     default:
