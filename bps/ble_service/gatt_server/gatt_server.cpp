@@ -113,7 +113,6 @@ std::expected<Command, Error<std::byte>> GattServer::CustomCharacteristics::getC
         case CommandType::eStopSampling:
             break;
         case CommandType::eStartSampling:
-            readAsNativeEndian(&this->command[1], command_pack.content.sample_time_ms);
             break;
         case CommandType::eSetPressure:
             readAsNativeEndian(&this->command[1 + 0 * sizeof(std::float32_t)], command_pack.content.pressure_settings.cun);
