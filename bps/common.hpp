@@ -53,6 +53,8 @@ inline std::optional<CommandType> toCommandType(ByteTypes auto value) noexcept {
         return CommandType::eStopSampling;
     case std::to_underlying(CommandType::eSetPressure):
         return CommandType::eSetPressure;
+    case std::to_underlying(CommandType::eReset):
+        return CommandType::eReset;
     default:
         return std::nullopt;
     }
