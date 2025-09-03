@@ -56,6 +56,7 @@ class SamplerService {
         // State machine related
         Command received_command{};
         MachineStatus current_status = MachineStatus::eIdle;
+        MachineStatus prev_status = MachineStatus::eNull;
         bool need_to_set_pressure = false;
 };
 

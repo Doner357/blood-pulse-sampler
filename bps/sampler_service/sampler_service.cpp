@@ -107,6 +107,7 @@ void SamplerService::updateCurrentStatus() noexcept {
                 }
             };
             this->current_status = MachineStatus::eSettingPressure;
+            this->prev_status = MachineStatus::eNull;
             this->need_to_set_pressure = true;
             BPS_LOG("Set BPS status to: SettingPressure (for Reset)\n");
             break;
@@ -114,7 +115,10 @@ void SamplerService::updateCurrentStatus() noexcept {
             break;
         }
     }
-    this->output_machine_status_queue_ref.send(this->current_status, pdTICKS_TO_MS(1));
+    if (this->current_status != this->prev_status) {
+        this->output_machine_status_queue_ref.send(this->current_status, pdTICKS_TO_MS(1));
+        this->prev_status = this->current_status;
+    }
 }
 
 void SamplerService::processCurrentStatus() noexcept {

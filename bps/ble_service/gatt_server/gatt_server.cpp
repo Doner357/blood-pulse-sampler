@@ -15,6 +15,7 @@
 #include "common.hpp"
 #include "utils.hpp"
 #include "gatt_database.hpp"
+#include "logger.hpp"
 
 namespace bps::ble::gatt {
 
@@ -118,6 +119,8 @@ std::expected<Command, Error<std::byte>> GattServer::CustomCharacteristics::getC
             readAsNativeEndian(&this->command[1 + 0 * sizeof(std::float32_t)], command_pack.content.pressure_settings.cun);
             readAsNativeEndian(&this->command[1 + 1 * sizeof(std::float32_t)], command_pack.content.pressure_settings.guan);
             readAsNativeEndian(&this->command[1 + 2 * sizeof(std::float32_t)], command_pack.content.pressure_settings.chi);
+            break;
+        case CommandType::eReset:
             break;
         default:
             break;
@@ -279,6 +282,7 @@ void GattServer::packetHandler(
             } else {
                 this->hci_con_handle = HCI_CON_HANDLE_INVALID;
             }
+            BPS_LOG("Connect to external, handle: %u\n", this->hci_con_handle);
             break;
         default:
             break;
@@ -292,6 +296,7 @@ void GattServer::packetHandler(
         if (this->command_callback) {
             this->command_callback(this->command_callback_context, Command{ CommandType::eReset, {} });
         }
+        BPS_LOG("Disconnected!\n");
         gap_advertisements_enable(1);
         break;
 
