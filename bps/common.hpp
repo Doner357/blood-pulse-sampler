@@ -131,8 +131,6 @@ inline std::optional<PressureType> toPressureType(ByteTypes auto value) noexcept
 struct Command {
     CommandType command_type = CommandType::eNull;
     union Content {
-        // For eStartSampling command
-        std::uint64_t sample_time_ms;
         // For eSetPressure command
         struct PressureInfo {
             std::float32_t cun;
